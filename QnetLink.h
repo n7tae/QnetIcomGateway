@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- *   Copyright (C) 2018-2019 by Thomas A. Early N7TAE
+ *   Copyright (C) 2018 by Thomas A. Early N7TAE
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -25,14 +25,10 @@
 #include <set>
 #include <atomic>
 #include <netinet/in.h>
-#include "versions.h"
 #include "QnetTypeDefs.h"
 #include "SEcho.h"
 #include "Random.h"
-#include "UnixDgramSocket.h"
 
-/*** version number must be x.xx ***/
-#define VERSION LINK_VERSION
 #define CALL_SIZE 8
 #define IP_SIZE 15
 #define QUERY_SIZE 56
@@ -65,14 +61,12 @@ public:
 	void Shutdown();
 private:
 	// functions
-	void ToUpper(std::string &s);
-	void UnpackCallsigns(const std::string &str, std::set<std::string> &set, const std::string &delimiters = ",");
-	void PrintCallsigns(const std::string &key, const std::set<std::string> &set);
 	bool load_gwys(const std::string &filename);
 	void calcPFCS(unsigned char *packet, int len);
-	bool read_config(const char *);
+	bool ReadConfig(const char *);
 	bool srv_open();
 	void srv_close();
+	void ToUpper(std::string &);
 	static void sigCatch(int signum);
 	void g2link(const char from_mod, const char *call, const char to_mod);
 	void print_status_file();
@@ -82,6 +76,8 @@ private:
 	void PlayAudioNotifyThread(char *msg);
 	void AudioNotifyThread(SECHO &edata);
 	void RptrAckThread(char *arg);
+	void UnpackCallsigns(const std::string &str, std::set<std::string> &set, const std::string &delimiters = ",");
+	void PrintCallsigns(const std::string &key, const std::set<std::string> &set);
 
 	/* configuration data */
 	std::string login_call, owner, to_g2_external_ip, my_g2_link_ip, gwys, status_file, qnvoice_file, announce_dir;
@@ -135,13 +131,12 @@ private:
 	} tracing[3];
 
 	// input from remote
-	int xrf_g2_sock, ref_g2_sock, dcs_g2_sock;
+	int xrf_g2_sock, ref_g2_sock, dcs_g2_sock, rptr_sock;
 	struct sockaddr_in fromDst4;
 
-	// unix sockets to gateway
-	std::string link2gate, gate2link;
-	CUnixDgramReader Gate2Link;
-	CUnixDgramWriter Link2Gate;
+	// After we receive it from remote g2,
+	// we must feed it to our local repeater.
+	struct sockaddr_in toLocalg2;
 
 	// input from our own local repeater
 	struct sockaddr_in fromRptr;

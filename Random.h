@@ -18,12 +18,21 @@
 
 #pragma once
 
+#include <unistd.h>
+#include <cstdlib>
+
 class CRandom
 {
 public:
-	CRandom();
+	CRandom() { srandom(getpid()); }
 
-	~CRandom();
+	~CRandom() {}
 
-	unsigned short NewStreamID();
+	unsigned short NewStreamID()
+	{
+		unsigned short r = 0;
+		while (0 == r)
+			r = 0xffffu & random();
+		return r;
+	}
 };

@@ -19,7 +19,6 @@
 
 BINDIR=/usr/local/bin
 CFGDIR=/usr/local/etc
-MMPATH=../MMDVMHost
 SYSDIR=/lib/systemd/system
 IRC=ircddb
 
@@ -29,7 +28,7 @@ IRC=ircddb
 # or, you can choose this for a much smaller executable without debugging help
 CPPFLAGS=-W -Wall -std=c++11 -Iircddb -DCFG_DIR=\"$(CFGDIR)\"
 
-LDFLAGS=-L/usr/lib -lconfig++ -lrt
+LDFLAGS=-L/usr/lib -lrt
 
 DSTROBJS = $(IRC)/dstar_dv.o $(IRC)/golay23.o
 IRCOBJS = $(IRC)/IRCDDB.o $(IRC)/IRCClient.o $(IRC)/IRCReceiver.o $(IRC)/IRCMessageQueue.o $(IRC)/IRCProtocol.o $(IRC)/IRCMessage.o $(IRC)/IRCDDBApp.o $(IRC)/IRCutils.o $(DSTROBJS)
@@ -37,21 +36,21 @@ SRCS = $(wildcard *.cpp) $(wildcard $(IRC)/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
 DEPS = $(SRCS:.cpp=.d)
 
-ICOM_PROGRAMS=qngateway qnlink qnremote qnvoice
+PROGRAMS=qngateway qnlink qnremote qnvoice
 
-icom   : $(ICOM_PROGRAMS)
+all : $(PROGRAMS)
 
-qngateway : $(IRCOBJS) QnetGateway.o aprs.o
-	g++ $(CPPFLAGS) -o qngateway QnetGateway.o aprs.o $(IRCOBJS) $(LDFLAGS) -pthread
+qngateway : $(IRCOBJS) QnetGateway.o QnetConfigure.o aprs.o
+	g++ $(CPPFLAGS) -o qngateway QnetGateway.o QnetConfigure.o aprs.o $(IRCOBJS) $(LDFLAGS) -pthread
 
-qnlink : QnetLink.o DPlusAuthenticator.o TCPReaderWriterClient.o Random.o
-	g++ $(CPPFLAGS) -o qnlink QnetLink.o DPlusAuthenticator.o TCPReaderWriterClient.o Random.o $(LDFLAGS) -pthread
+qnlink : QnetLink.o QnetConfigure.o DPlusAuthenticator.o TCPReaderWriterClient.o
+	g++ $(CPPFLAGS) -o qnlink QnetLink.o QnetConfigure.o DPlusAuthenticator.o TCPReaderWriterClient.o $(LDFLAGS) -pthread
 
-qnremote : QnetRemote.o Random.o
-	g++ $(CPPFLAGS) -o qnremote QnetRemote.o Random.o $(LDFLAGS)
+qnremote : QnetRemote.o QnetConfigure.o
+	g++ $(CPPFLAGS) -o qnremote QnetRemote.o QnetConfigure.o $(LDFLAGS)
 
-qnvoice : QnetVoice.o Random.o
-	g++ $(CPPFLAGS) -o qnvoice QnetVoice.o Random.o $(LDFLAGS)
+qnvoice : QnetVoice.o QnetConfigure.o
+	g++ $(CPPFLAGS) -o qnvoice QnetVoice.o QnetConfigure.o $(LDFLAGS)
 
 %.o : %.cpp
 	g++ $(CPPFLAGS) -MMD -MD -c $< -o $@
@@ -59,11 +58,11 @@ qnvoice : QnetVoice.o Random.o
 .PHONY: clean
 
 clean:
-	$(RM) $(OBJS) $(DEPS) $(ALL_PROGRAMS) *.gch
+	$(RM) $(OBJS) $(DEPS) $(PROGRAMS) *.gch
 
 -include $(DEPS)
 
-install : $(ICOM_PROGRAMS) gwys.txt qn.cfg
+install : $(PROGRAMS) gwys.txt qn.cfg
 	######### QnetGateway #########
 	/bin/cp -f qngateway $(BINDIR)
 	/bin/cp -f qnremote qnvoice $(BINDIR)

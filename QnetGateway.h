@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2018 by Thomas Early N7TAE
+ *   Copyright (C) 2018-2019 by Thomas Early N7TAE
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -95,8 +95,7 @@ private:
 
 	std::string OWNER, owner, local_irc_ip, status_file, dtmf_dir, dtmf_file, echotest_dir, irc_pass, qnvoicefile;
 
-	bool bool_send_qrgs, bool_irc_debug, bool_dtmf_debug, bool_regen_header, bool_qso_details, bool_send_aprs, playNotInCache;
-	bool is_icom, is_not_icom;
+	bool bool_send_qrgs, bool_irc_debug, bool_log_debug, bool_dtmf_debug, bool_regen_header, bool_qso_details, bool_send_aprs, playNotInCache;
 
 	int play_wait, play_delay, echotest_rec_timeout, voicemail_rec_timeout, from_remote_g2_timeout, from_local_rptr_timeout, dtmf_digit;
 
@@ -166,10 +165,6 @@ private:
 
 	// read configuration file
 	bool read_config(char *);
-	bool get_value(const Config &cfg, const std::string path, int &value, int min, int max, int default_value);
-	bool get_value(const Config &cfg, const std::string path, double &value, double min, double max, double default_value);
-	bool get_value(const Config &cfg, const std::string path, bool &value, bool default_value);
-	bool get_value(const Config &cfg, const std::string path, std::string &value, int min, int max, const char *default_value);
 
 /* aprs functions, borrowed from my retired IRLP node 4201 */
 	void gps_send(short int rptr_idx);

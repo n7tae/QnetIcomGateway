@@ -55,9 +55,10 @@
 
 #include "IRCDDB.h"
 #include "IRCutils.h"
-#include "versions.h"
 #include "QnetGateway.h"
+#include "QnetConfigure.h"
 
+#define VERSION "QnetIcomGateway-0.0.0"
 
 extern void dstar_dv_init();
 extern int dstar_dv_decode(const unsigned char *d, int data[3]);
@@ -172,137 +173,70 @@ void CQnetGateway::calcPFCS(unsigned char *packet, int len)
 	return;
 }
 
-bool CQnetGateway::get_value(const Config &cfg, const std::string path, int &value, int min, int max, int default_value)
-{
-	if (cfg.lookupValue(path, value)) {
-		if (value < min || value > max)
-			value = default_value;
-	} else
-		value = default_value;
-	printf("%s = [%d]\n", path.c_str(), value);
-	return true;
-}
-
-bool CQnetGateway::get_value(const Config &cfg, const std::string path, double &value, double min, double max, double default_value)
-{
-	if (cfg.lookupValue(path, value)) {
-		if (value < min || value > max)
-			value = default_value;
-	} else
-		value = default_value;
-	printf("%s = [%lg]\n", path.c_str(), value);
-	return true;
-}
-
-bool CQnetGateway::get_value(const Config &cfg, const std::string path, bool &value, bool default_value)
-{
-	if (! cfg.lookupValue(path, value))
-		value = default_value;
-	printf("%s = [%s]\n", path.c_str(), value ? "true" : "false");
-	return true;
-}
-
-bool CQnetGateway::get_value(const Config &cfg, const std::string path, std::string &value, int min, int max, const char *default_value)
-{
-	if (cfg.lookupValue(path, value)) {
-		int l = value.length();
-		if (l<min || l>max) {
-			printf("%s is invalid\n", path.c_str());
-			return false;
-		}
-	} else
-		value = default_value;
-	printf("%s = [%s]\n", path.c_str(), value.c_str());
-	return true;
-}
-
 /* process configuration file */
 bool CQnetGateway::read_config(char *cfgFile)
 {
-	Config cfg;
+	CQnetConfigure cfg;
+	if (cfg.Initialize(cfgFile))
+		return true;
 
-	printf("Reading file %s\n", cfgFile);
-	// Read the file. If there is an error, report it and exit.
-	try {
-		cfg.readFile(cfgFile);
-	} catch(const FileIOException &fioex) {
-		printf("Can't read %s\n", cfgFile);
-		return true;
-	} catch(const ParseException &pex) {
-		printf("Parse error at %s:%d - %s\n", pex.getFile(), pex.getLine(), pex.getError());
-		return true;
-	}
 	// ircddb
-	std::string path("ircddb.");
-	if (! get_value(cfg, path+"login", owner, 3, CALL_SIZE-2, "UNDEFINED"))
-		return true;
-	if (0 == owner.compare("UNDEFINED")) {
+	const std::string estr("");
+	std::string path("ircddb_");
+	if (!cfg.KeyExists(path+"login")) {
 		fprintf(stderr, "You must specify your lisensed callsign in ircddb.login\n");
 		return true;
 	}
+	if (cfg.GetValue(path+"login", estr, owner, 3, 6))
+		return true;
 	OWNER = owner;
 	ToLower(owner);
 	ToUpper(OWNER);
 	printf("OWNER=[%s]\n", OWNER.c_str());
 	OWNER.resize(CALL_SIZE, ' ');
-
-	if (! get_value(cfg, path+"host", ircddb.ip, 3, MAXHOSTNAMELEN, "rr.openquad.net"))
+	if (! cfg.GetValue(path+"host", estr, ircddb.ip, 3, MAXHOSTNAMELEN))
+		return true;
+	cfg.GetValue(path+"port", estr, ircddb.port, 1000, 65535);
+	if(! cfg.GetValue(path+"password", estr, irc_pass, 0, 512))
 		return true;
 
-	get_value(cfg, path+"port", ircddb.port, 1000, 65535, 9007);
-
-	if(! get_value(cfg, path+"password", irc_pass, 0, 512, "1111111111111111"))
-		return true;
+	// gateway
+	path.assign("gateway_");
+	cfg.GetValue(path+"header_regen",   estr, bool_regen_header);
+	cfg.GetValue(path+"send_qrgs_maps", estr, bool_send_qrgs);
+	cfg.GetValue(path+"local_irc_ip",   estr, local_irc_ip,        7, IP_SIZE);
+	cfg.GetValue(path+"external_ip",    estr, g2_external.ip,      7, IP_SIZE);
+	cfg.GetValue(path+"external_port",  estr, g2_external.port, 1024,   65535);
+	cfg.GetValue(path+"internal_ip",    estr, g2_internal.ip,      7, IP_SIZE);
+	cfg.GetValue(path+"internal_port",  estr, g2_internal.port, 1024,   65535);
 
 	// modules
-	is_icom = is_not_icom = false;
 	for (short int m=0; m<3; m++) {
-		std::string path = "module.";
-		path += m + 'a';
-		path += '.';
+		path.assign("module_");
+		path.append(1, 'a'+m);
 		std::string type;
-		if (cfg.lookupValue(std::string(path+".type").c_str(), type)) {
-			printf("%s = [%s]\n", std::string(path+"type").c_str(), type.c_str());
-			rptr.mod[m].defined = true;
+		if (cfg.GetValue(path, estr, type, 1, 16))
+			rptr.mod[m].defined = false;
+		else {
 			if (0 == type.compare("icom")) {
-				rptr.mod[m].package_version = ICOM_VERSION;
-				is_icom = true;
-			} else if (0 == type.compare("dvap")) {
-				rptr.mod[m].package_version = DVAP_VERSION;
-				is_not_icom = true;
-			} else if (0 == type.compare("dvrptr")) {
-				rptr.mod[m].package_version = DVRPTR_VERSION;
-				is_not_icom = true;
-			} else if (0 == type.compare("mmdvm")) {
-				rptr.mod[m].package_version = MMDVM_VERSION;
-				is_not_icom = true;
-			} else if (0 == type.compare("itap")) {
-				rptr.mod[m].package_version = ITAP_VERSION;
-				is_not_icom = true;
+				rptr.mod[m].package_version = VERSION;
 			} else {
 				printf("module type '%s' is invalid\n", type.c_str());
 				return true;
 			}
-			if (is_icom && is_not_icom) {
-				printf("cannot define both icom and non-icom modules\n");
-				return true;
-			}
+			rptr.mod[m].defined = true;
 
-			if (! get_value(cfg, std::string(path+"ip").c_str(), rptr.mod[m].portip.ip, 7, IP_SIZE, is_icom ? "172.16.0.1" : "127.0.0.1"))
-				return true;
-			get_value(cfg, std::string(path+"port").c_str(), rptr.mod[m].portip.port, 16000, 65535, is_icom ? 20000 : 19998+m);
-			get_value(cfg, std::string(path+"frequency").c_str(), rptr.mod[m].frequency, 0.0, 1.0e12, 0.0);
-			get_value(cfg, std::string(path+"offset").c_str(), rptr.mod[m].offset, -1.0e12, 1.0e12, 0.0);
-			get_value(cfg, std::string(path+"range").c_str(), rptr.mod[m].range, 0.0, 1609344.0, 0.0);
-			get_value(cfg, std::string(path+"agl").c_str(), rptr.mod[m].agl, 0.0, 1000.0, 0.0);
-			get_value(cfg, std::string(path+"latitude").c_str(), rptr.mod[m].latitude, -90.0, 90.0, 0.0);
-			get_value(cfg, std::string(path+"longitude").c_str(), rptr.mod[m].longitude, -180.0, 180.0, 0.0);
-			if (! cfg.lookupValue(path+"desc1", rptr.mod[m].desc1))
-				rptr.mod[m].desc1 = "";
-			if (! cfg.lookupValue(path+"desc2", rptr.mod[m].desc2))
-				rptr.mod[m].desc2 = "";
-			if (! get_value(cfg, std::string(path+"url").c_str(), rptr.mod[m].url, 0, 80, "github.com/n7tae/QnetGateway"))
-				return true;
+			cfg.GetValue("gateway_module_ip",     estr, rptr.mod[m].portip.ip,        7,   IP_SIZE);
+			cfg.GetValue("gateway_internal_port", estr, rptr.mod[m].portip.port,   1024,     65535);
+			cfg.GetValue(path+"frequency",        type, rptr.mod[m].frequency,      0.0,    1.0e12);
+			cfg.GetValue(path+"offset",           type, rptr.mod[m].offset,     -1.0e12,    1.0e12);
+			cfg.GetValue(path+"range",            type, rptr.mod[m].range,          0.0, 1609344.0);
+			cfg.GetValue(path+"agl",              type, rptr.mod[m].agl,            0.0,    1000.0);
+			cfg.GetValue("gateway_latitude",      estr, rptr.mod[m].latitude,     -90.0,      90.0);
+			cfg.GetValue("gateway_longitude",     estr, rptr.mod[m].longitude,   -180.0,     180.0);
+			cfg.GetValue("gateway_desc1",         estr, rptr.mod[m].desc1,            0,        20);
+			cfg.GetValue("gateway_desc2",         estr, rptr.mod[m].desc2,            0,        20);
+			cfg.GetValue("gateway_url",           estr, rptr.mod[m].url,              0,        80);
 			// truncate strings
 			if (rptr.mod[m].desc1.length() > 20)
 				rptr.mod[m].desc1.resize(20);
@@ -312,114 +246,49 @@ bool CQnetGateway::read_config(char *cfgFile)
 			if (rptr.mod[m].desc1.length())
 				rptr.mod[m].desc = rptr.mod[m].desc1 + ' ';
 			rptr.mod[m].desc += rptr.mod[m].desc2;
-		} else
-			rptr.mod[m].defined = false;
+		}
 	}
-	if (! is_icom && ! is_not_icom) {
+	if (rptr.mod[0].defined==false && rptr.mod[1].defined==false && rptr.mod[2].defined==false) {
 		printf("No modules defined!\n");
 		return true;
-	} else if (is_icom) { // make sure all ICOM modules have the same IP and port number
-		std::string addr;
-		int port;
-		for (int i=0; i<3; i++) {
-			if (rptr.mod[i].defined) {
-				if (addr.size()) {
-					if (addr.compare(rptr.mod[i].portip.ip) || port!=rptr.mod[i].portip.port) {
-						printf("all defined ICOM modules must have the same IP and port number!\n");
-						return true;
-					}
-				} else {
-					addr = rptr.mod[i].portip.ip;
-					port = rptr.mod[i].portip.port;
-				}
-			}
-		}
-		for (int i=0; i<3; i++) {
-			if (! rptr.mod[i].defined) {
-				rptr.mod[i].portip.ip = addr;
-				rptr.mod[i].portip.port = port;
-			}
-		}
 	}
 
-	// gateway
-	path = "gateway.";
-	if (! get_value(cfg, path+"local_irc_ip", local_irc_ip, 7, IP_SIZE, "0.0.0.0"))
-		return true;
-
-	if (! get_value(cfg, path+"external.ip", g2_external.ip, 7, IP_SIZE, "0.0.0.0"))
-		return true;
-
-	get_value(cfg, path+"external.port", g2_external.port, 1024, 65535, 40000);
-
-	if (! get_value(cfg, path+"internal.ip", g2_internal.ip, 7, IP_SIZE, is_icom ? "172.16.0.20" : "0.0.0.0"))
-		return true;
-
-	get_value(cfg, path+"internal.port", g2_internal.port, 16000, 65535, is_icom ? 20000 : 19000);
-
-	get_value(cfg, path+"regen_header", bool_regen_header, true);
-
-	get_value(cfg, path+"aprs_send", bool_send_aprs, true);
-
-	get_value(cfg, path+"send_qrgs_maps", bool_send_qrgs, true);
-
 	// APRS
-	path = "aprs.";
-	if (! get_value(cfg, path+"host", rptr.aprs.ip, 7, MAXHOSTNAMELEN, "rotate.aprs.net"))
-		return true;
-
-	get_value(cfg, path+"port", rptr.aprs.port, 10000, 65535, 14580);
-
-	get_value(cfg, path+"interval", rptr.aprs_interval, 40, 1000, 40);
-
-	if (! get_value(cfg, path+"filter", rptr.aprs_filter, 0, 512, ""))
-		return true;
+	path.assign("aprs_");
+	cfg.GetValue(path+"send",     estr, bool_send_aprs);
+	cfg.GetValue(path+"host",     estr, rptr.aprs.ip,        7, MAXHOSTNAMELEN);
+	cfg.GetValue(path+"port",     estr, rptr.aprs.port,  10000,          65535);
+	cfg.GetValue(path+"interval", estr, rptr.aprs_interval, 40,           1000);
+	cfg.GetValue(path+"filter",   estr, rptr.aprs_filter,    0,            512);
 
 	// log
-	path = "log.";
-	get_value(cfg, path+"qso", bool_qso_details, false);
-
-	get_value(cfg, path+"irc", bool_irc_debug, false);
-
-	get_value(cfg, path+"dtmf", bool_dtmf_debug, false);
-	if (! get_value(cfg, "link.outgoing_ip", g2_link.ip, 7, IP_SIZE, "127.0.0.1"))
-		return true;
+	path.assign("log_");
+	cfg.GetValue(path+"qso",   estr, bool_qso_details);
+	cfg.GetValue(path+"irc",   estr, bool_irc_debug);
+	cfg.GetValue(path+"dtmf",  estr, bool_dtmf_debug);
+	cfg.GetValue(path+"debug", estr, bool_log_debug);
 
 	// file
-	path = "file.";
-	if (! get_value(cfg, path+"echotest", echotest_dir, 2, FILENAME_MAX, "/tmp"))
-		return true;
-
-	if (! get_value(cfg, path+"dtmf",  dtmf_dir, 2,FILENAME_MAX, "/tmp"))
-		return true;
-
-	if (! get_value(cfg, path+"status", status_file, 2, FILENAME_MAX, "/usr/local/etc/RPTR_STATUS.txt"))
-		return true;
-
-	if (! get_value(cfg, path+"qnvoicefile", qnvoicefile, 2, FILENAME_MAX, "/tmp/qnvoice.txt"))
-		return true;
+	path.assign("file_");
+	cfg.GetValue(path+"echotest",    estr, echotest_dir, 2, FILENAME_MAX);
+	cfg.GetValue(path+"dtmf",        estr, dtmf_dir,     2, FILENAME_MAX);
+	cfg.GetValue(path+"status",      estr, status_file,  2, FILENAME_MAX);
+	cfg.GetValue(path+"qnvoicefile", estr, qnvoicefile,  2, FILENAME_MAX);
 
 	// link
-	path = "link.";
-	get_value(cfg, path+"port", g2_link.port, 16000, 65535, 18997);
-
-	if (! get_value(cfg, path+"ip", g2_link.ip, 7, 15, "127.0.0.1"))
-		return true;
+	path.assign("link_");
+	cfg.GetValue(path+"port", estr, g2_link.port, 16000, 65535);
+	cfg.GetValue(path+"ip",   estr, g2_link.ip,       7,    15);
 
 	// timing
-	path = "timing.play.";
-	get_value(cfg, path+"wait", play_wait, 1, 10, 1);
-
-	get_value(cfg, path+"delay", play_delay, 9, 25, 19);
-
-	path = "timing.timeout.";
-	get_value(cfg, path+"echo", echotest_rec_timeout, 1, 10, 1);
-
-	get_value(cfg, path+"voicemail", voicemail_rec_timeout, 1, 10, 1);
-
-	get_value(cfg, path+"remote_g2", from_remote_g2_timeout, 1, 10, 2);
-
-	get_value(cfg, path+"local_rptr", from_local_rptr_timeout, 1, 10, 1);
+	path.assign("timing_timeout_");
+	cfg.GetValue(path+"echotest",   estr, echotest_rec_timeout,    1, 10);
+	cfg.GetValue(path+"voicemail",  estr, voicemail_rec_timeout,   1, 10);
+	cfg.GetValue(path+"remote_g2",  estr, from_remote_g2_timeout,  1, 10);
+	cfg.GetValue(path+"local_rptr", estr, from_local_rptr_timeout, 1, 10);
+	path.assign("timing_play_");
+	cfg.GetValue(path+"wait",  estr, play_wait,  1, 10);
+	cfg.GetValue(path+"delay", estr, play_delay, 9, 25);
 
 	return false;
 }
@@ -755,7 +624,7 @@ void CQnetGateway::ProcessTimeouts()
 
 				// Send end_of_audio to local repeater.
 				// Let the repeater re-initialize
-				end_of_audio.counter = is_icom ? G2_COUNTER_OUT++ :toRptr[i].G2_COUNTER++;
+				end_of_audio.counter = G2_COUNTER_OUT++;
 				if (i == 0)
 					end_of_audio.vpkt.snd_term_id = 0x03;
 				else if (i == 1)
@@ -1128,6 +997,8 @@ void CQnetGateway::ProcessSlowData(unsigned char *data, unsigned short sid)
 /* run the main loop for QnetGateway */
 void CQnetGateway::Process()
 {
+	static unsigned char lastctrl = 20U;
+	static std::string superframe[3];
 	// dtmf stuff
 	int dtmf_buf_count[3] = {0, 0, 0};
 	char dtmf_buf[3][MAX_DTMF_BUF + 1] = { {""}, {""}, {""} };
@@ -1163,36 +1034,32 @@ void CQnetGateway::Process()
 	if (keep_running)
 		printf("get_irc_data thread started\n");
 
-	ii->kickWatchdog(IRCDDB_VERSION);
+	ii->kickWatchdog(VERSION);
 
-	if (is_icom) {
-		// send INIT to Icom Stack
-		unsigned char buf[500];
-		memset(buf, 0, 10);
-		memcpy(buf, "INIT", 4);
-		buf[6] = 0x73U;
-		// we can use the module a band_addr for INIT
-		sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
-		printf("Waiting for ICOM controller...\n");
+	// send INIT to Icom Stack
+	unsigned char buf[500];
+	memset(buf, 0, 10);
+	memcpy(buf, "INIT", 4);
+	buf[6] = 0x73U;
+	// we can use the module a band_addr for INIT
+	sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
+	printf("Waiting for ICOM controller...\n");
 
-		// get the acknowledgement from the ICOM Stack
-		while (keep_running) {
-			socklen_t fromlength = sizeof(struct sockaddr_in);
-			int recvlen = recvfrom(srv_sock, buf, 500, 0, (struct sockaddr *)&fromRptr, &fromlength);
-			if (10==recvlen && 0==memcmp(buf, "INIT", 4) && 0x72U==buf[6] && 0x0U==buf[7]) {
-				OLD_REPLY_SEQ = 256U * buf[4] + buf[5];
-				NEW_REPLY_SEQ = OLD_REPLY_SEQ + 1;
-				G2_COUNTER_OUT = NEW_REPLY_SEQ;
-				unsigned int ui = G2_COUNTER_OUT;
-				printf("SYNC: old=%u, new=%u out=%u\n", OLD_REPLY_SEQ, NEW_REPLY_SEQ, ui);
-				break;
-			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	// get the acknowledgement from the ICOM Stack
+	while (keep_running) {
+		socklen_t fromlength = sizeof(struct sockaddr_in);
+		int recvlen = recvfrom(srv_sock, buf, 500, 0, (struct sockaddr *)&fromRptr, &fromlength);
+		if (10==recvlen && 0==memcmp(buf, "INIT", 4) && 0x72U==buf[6] && 0x0U==buf[7]) {
+			OLD_REPLY_SEQ = 256U * buf[4] + buf[5];
+			NEW_REPLY_SEQ = OLD_REPLY_SEQ + 1;
+			G2_COUNTER_OUT = NEW_REPLY_SEQ;
+			unsigned int ui = G2_COUNTER_OUT;
+			printf("SYNC: old=%u, new=%u out=%u\n", OLD_REPLY_SEQ, NEW_REPLY_SEQ, ui);
+			break;
 		}
-		printf("Detected ICOM controller!\n");
-	} else
-		printf("Skipping ICOM initialization\n");
-
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+	printf("Detected ICOM controller!\n");
 
 	while (keep_running) {
 		ProcessTimeouts();
@@ -1239,7 +1106,7 @@ void CQnetGateway::Process()
 								printf("id=%04x G2 start, ur=%.8s r1=%.8s r2=%.8s my=%.8s/%.4s IP=%s:%u\n", ntohs(g2buf.streamid), g2buf.hdr.urcall, g2buf.hdr.rpt1, g2buf.hdr.rpt2, g2buf.hdr.mycall, g2buf.hdr.sfx, inet_ntoa(fromDst4.sin_addr), ntohs(fromDst4.sin_port));
 
 							memcpy(rptrbuf.pkt_id, "DSTR", 4);
-							rptrbuf.counter = htons(is_icom ? G2_COUNTER_OUT++ : toRptr[i].G2_COUNTER++);	// bump the counter
+							rptrbuf.counter = htons(G2_COUNTER_OUT++);	// bump the counter
 							rptrbuf.flag[0] = 0x73;
 							rptrbuf.flag[1] = 0x12;
 							rptrbuf.flag[2] = 0x00;
@@ -1276,8 +1143,6 @@ void CQnetGateway::Process()
 						}
 					}
 				} else {	// g2buflen == 27
-					if (bool_qso_details && g2buf.ctrl & 0x40)
-						printf("id=%04x END G2\n", ntohs(g2buf.streamid));
 
 					/* find out which repeater module to send the data to */
 					int i;
@@ -1285,7 +1150,7 @@ void CQnetGateway::Process()
 						/* streamid match ? */
 						if (toRptr[i].streamid==g2buf.streamid && toRptr[i].adr==fromDst4.sin_addr.s_addr) {
 							memcpy(rptrbuf.pkt_id, "DSTR", 4);
-							rptrbuf.counter = htons(is_icom ? G2_COUNTER_OUT++ : toRptr[i].G2_COUNTER++);
+							//rptrbuf.counter = htons(G2_COUNTER_OUT++);
 							rptrbuf.flag[0] = 0x73;
 							rptrbuf.flag[1] = 0x12;
 							rptrbuf.flag[2] = 0x00;
@@ -1293,7 +1158,54 @@ void CQnetGateway::Process()
 							rptrbuf.vpkt.icm_id = 0x20;
 							memcpy(&rptrbuf.vpkt.dst_rptr_id, g2buf.flagb, 18);
 
-							sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
+							//healing
+							if (bool_log_debug) {
+								const unsigned int ctrl = g2buf.ctrl & 0x3FU;
+								if (g2buf.vasd.text[0]==0x55U && g2buf.vasd.text[1]==0x2DU && g2buf.vasd.text[2]==0x16U) {
+									if (superframe[i].size() > 65U) {
+										printf("Frame[%c]: %s\n", 'A'+i, superframe[i].c_str());
+										superframe[i].clear();
+									}
+									const char *ch = "#abcdefghijklmnopqrstuvwxyz";
+									superframe[i].append(1, (ctrl<27U) ? ch[ctrl] : '%' );
+								} else {
+									const char *ch = "!ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+									superframe[i].append(1, (ctrl<27U) ? ch[ctrl] : '*' );
+								}
+							}
+
+							int diff = int(0x3FU & g2buf.ctrl) - int(lastctrl);
+							if (diff < 0)
+								diff += 21;
+							if (diff > 1 && diff < 6) {	// fill up to 5 missing voice frames
+								if (bool_log_debug)
+									fprintf(stderr, "Warning: inserting %d missing voice frame(s)\n", diff - 1);
+								SDSTR dstr;
+								memcpy(dstr.pkt_id, rptrbuf.pkt_id, 16U);	// everything but the ctrl and voice data
+								while (--diff > 0) {
+									lastctrl = (lastctrl + 1U) % 21U;
+									dstr.counter = htons(G2_COUNTER_OUT++);
+									dstr.vpkt.ctrl = lastctrl;
+									if (dstr.vpkt.ctrl) {
+										const unsigned char silence[12] = { 0x9EU,0x8DU,0x32U,0x88U,0x26U,0x1AU,0x3FU,0x61U,0xE8U,0x70U,0x4FU,0x93U };
+										memcpy(dstr.vpkt.vasd.voice, silence, 12U);
+									} else {
+										const unsigned char sync[12] = { 0x9EU,0x8DU,0x32U,0x88U,0x26U,0x1AU,0x3FU,0x61U,0xE8U,0x55U,0x2DU,0x16U };
+										memcpy(dstr.vpkt.vasd.voice, sync, 12U);
+									}
+									sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
+								}
+							}
+
+							if (((lastctrl + 1U) % 21U == (0x3FU & g2buf.ctrl)) || (0x40U & g2buf.ctrl)) {
+								// no matter what, we will send this on if it is the closing frame
+								lastctrl = (0x3FU & g2buf.ctrl);
+								rptrbuf.counter = htons(G2_COUNTER_OUT++);
+								sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
+							} else {
+								if (bool_log_debug)
+									fprintf(stderr, "Warning: Ignoring packet because its ctrl=0x%02xU and lastctrl=0x%02xU\n", g2buf.ctrl, lastctrl);
+							}
 
 							/* timeit */
 							time(&toRptr[i].last_time);
@@ -1309,6 +1221,12 @@ void CQnetGateway::Process()
 								toRptr[i].last_time = 0;
 								toRptr[i].streamid = 0;
 								toRptr[i].adr = 0;
+								if (bool_log_debug && superframe[i].size()) {
+									printf("Final[%c]: %s\n", 'A'+i, superframe[i].c_str());
+									superframe[i].clear();
+								}
+								if (bool_qso_details)
+									printf("id=%04x END\n", ntohs(g2buf.streamid));
 							}
 							break;
 						}
@@ -1329,15 +1247,15 @@ void CQnetGateway::Process()
 									if (toRptr[i].last_time==0 && band_txt[i].last_time==0) {
 										printf("Re-generating header for streamID=%04x\n", g2buf.streamid);
 
-										toRptr[i].saved_hdr[4] = (unsigned char)(((is_icom ? G2_COUNTER_OUT : toRptr[i].G2_COUNTER) >> 8) & 0xff);
-										toRptr[i].saved_hdr[5] = (unsigned char)((is_icom ? G2_COUNTER_OUT++ : toRptr[i].G2_COUNTER++) & 0xff);
+										toRptr[i].saved_hdr[4] = (unsigned char)G2_COUNTER_OUT;
+										toRptr[i].saved_hdr[5] = (unsigned char)G2_COUNTER_OUT++;
 
 										/* re-generate/send the header */
 										sendto(srv_sock, toRptr[i].saved_hdr, 58, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
 
 										/* send this audio packet to repeater */
 										memcpy(rptrbuf.pkt_id, "DSTR", 4);
-										rptrbuf.counter = htons(is_icom ? G2_COUNTER_OUT++ : toRptr[i].G2_COUNTER++);
+										rptrbuf.counter = htons(G2_COUNTER_OUT++);
 										rptrbuf.flag[0] = 0x73;
 										rptrbuf.flag[1] = 0x12;
 										rptrbuf.flag[2] = 0x00;
@@ -1386,28 +1304,28 @@ void CQnetGateway::Process()
 			if (0 == memcmp(rptrbuf.pkt_id, "DSTR", 4)) {
 				/////////////////////////////////////////////////////////////////////
 				// some ICOM handshaking...
-				if (is_icom && 10==recvlen && 0x72==rptrbuf.flag[0]) {	// ACK from rptr
+				if (10==recvlen && 0x72==rptrbuf.flag[0]) {	// ACK from rptr
 					NEW_REPLY_SEQ = ntohs(rptrbuf.counter);
 					if (NEW_REPLY_SEQ == OLD_REPLY_SEQ) {
 						G2_COUNTER_OUT = NEW_REPLY_SEQ;
 						OLD_REPLY_SEQ = NEW_REPLY_SEQ - 1;
 					} else
 						OLD_REPLY_SEQ = NEW_REPLY_SEQ;
-				} else if (is_icom && 0x73U==rptrbuf.flag[0] && (0x21U==rptrbuf.flag[1] || 0x11U==rptrbuf.flag[1] || 0x0U==rptrbuf.flag[1])) {
+				} else if (0x73U==rptrbuf.flag[0] && (0x21U==rptrbuf.flag[1] || 0x11U==rptrbuf.flag[1] || 0x0U==rptrbuf.flag[1])) {
 					rptrbuf.flag[0] = 0x72U;
 					memset(rptrbuf.flag+1, 0x0U, 3);
 					sendto(srv_sock, rptrbuf.pkt_id, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
 				// end of ICOM handshaking
 				/////////////////////////////////////////////////////////////////////
 				} else if ( (recvlen==58 || recvlen==29 || recvlen==32) && rptrbuf.flag[0]==0x73 && rptrbuf.flag[1]==0x12 && rptrbuf.flag[2]==0x0 && rptrbuf.vpkt.icm_id==0x20 && (rptrbuf.remaining==0x30 || rptrbuf.remaining==0x13 || rptrbuf.remaining==0x16) ) {
-					if (is_icom) {	// acknowledge packet to ICOM
+					do {	// acknowledge packet to ICOM
 						SDSTR reply;
 						memcpy(reply.pkt_id, "DSTR", 4);
 						reply.counter = rptrbuf.counter;
 						reply.flag[0] = 0x72U;
 						memset(reply.flag+1, 0, 3);
 						sendto(srv_sock, reply.pkt_id, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
-					}
+					} while(false);
 
 					if (recvlen == 58) {
 						vPacketCount = 0U;
@@ -1696,10 +1614,7 @@ void CQnetGateway::Process()
 														time(&toRptr[i].last_time);
 
 														/* bump the G2 counter */
-														if (is_icom)
-															G2_COUNTER_OUT++;
-														else
-															toRptr[i].G2_COUNTER++;
+														G2_COUNTER_OUT++;
 
 														toRptr[i].sequence = rptrbuf.vpkt.ctrl;
 													}
@@ -1870,10 +1785,7 @@ void CQnetGateway::Process()
 									time(&toRptr[i].last_time);
 
 									/* bump the G2 counter */
-									if (is_icom)
-										G2_COUNTER_OUT++;
-									else
-										toRptr[i].G2_COUNTER ++;
+									G2_COUNTER_OUT++;
 
 									toRptr[i].sequence = rptrbuf.vpkt.ctrl;
 								}
@@ -2074,24 +1986,10 @@ void CQnetGateway::Process()
 							else if ((vm[i].fd >= 0) && (vm[i].streamid==rptrbuf.vpkt.streamid)) {	// Is the data to be recorded for voicemail
 								time(&vm[i].last_time);
 
-								//memcpy(recbuf.title, "DSVT", 4);
-								//recbuf.config = 0x20;
-								//recbuf.flaga[0] = recbuf.flaga[1] = recbuf.flaga[2] = 0;
-								//recbuf.id = rptrbuf.vpkt.icm_id;
-								//recbuf.flagb[0] = rptrbuf.vpkt.dst_rptr_id;
-								//recbuf.flagb[1] = rptrbuf.vpkt.snd_rptr_id;
-								//recbuf.flagb[2] = rptrbuf.vpkt.snd_term_id;
-								//memcpy(&recbuf.streamid, &rptrbuf.vpkt.streamid, 3);
 								if (recvlen == 29)
-									//memcpy(recbuf.vasd.voice, rptrbuf.vpkt.vasd.voice, 12);
 									(void)write(vm[i].fd, rptrbuf.vpkt.vasd.voice, 9);
 								else
-									//memcpy(recbuf.vasd.voice, rptrbuf.vpkt.vasd1.voice, 12);
 									(void)write(vm[i].fd, rptrbuf.vpkt.vasd1.voice, 9);
-
-								//rec_len = 27;
-								//(void)write(vm[i].fd, &rec_len, 2);
-								//(void)write(vm[i].fd, &recbuf, rec_len);
 
 								if ((rptrbuf.vpkt.ctrl & 0x40) != 0) {
 									vm[i].streamid = 0;
@@ -2109,10 +2007,7 @@ void CQnetGateway::Process()
 								time(&toRptr[i].last_time);
 
 								/* bump G2 counter */
-								if (is_icom)
-									G2_COUNTER_OUT++;
-								else
-									toRptr[i].G2_COUNTER ++;
+								G2_COUNTER_OUT++;
 
 								toRptr[i].sequence = rptrbuf.vpkt.ctrl;
 
@@ -2409,7 +2304,7 @@ void CQnetGateway::PlayFileThread(SECHO &edata)
 
 	// reformat the header and send it
 	memcpy(dstr.pkt_id, "DSTR", 4);
-	dstr.counter = htons(is_icom ? G2_COUNTER_OUT++ : toRptr[mod].G2_COUNTER++);
+	dstr.counter = htons(G2_COUNTER_OUT++);
 	dstr.flag[0] = 0x73;
 	dstr.flag[1] = 0x12;
 	dstr.flag[2] = 0x00;
@@ -2436,7 +2331,7 @@ void CQnetGateway::PlayFileThread(SECHO &edata)
 
 		int nread = fread(dstr.vpkt.vasd.voice, 9, 1, fp);
 		if (nread == 1) {
-			dstr.counter = htons(is_icom ? G2_COUNTER_OUT++ : toRptr[mod].G2_COUNTER++);
+			dstr.counter = htons(G2_COUNTER_OUT++);
 			dstr.vpkt.ctrl = (unsigned char)(i % 21);
 			if (0x0U == dstr.vpkt.ctrl) {
 				memcpy(dstr.vpkt.vasd.text, sdsync, 3);
@@ -2621,7 +2516,7 @@ int CQnetGateway::Init(char *cfgfile)
 	}
 	compute_aprs_hash();
 
-	ii = new CIRCDDB(ircddb.ip, ircddb.port, owner, irc_pass, IRCDDB_VERSION, local_irc_ip);
+	ii = new CIRCDDB(ircddb.ip, ircddb.port, owner, irc_pass, VERSION, local_irc_ip);
 	bool ok = ii->open();
 	if (!ok) {
 		printf("irc open failed\n");
@@ -2986,7 +2881,7 @@ bool CQnetGateway::verify_gps_csum(char *gps_text, char *csum_text)
 
 int main(int argc, char **argv)
 {
-	printf("VERSION %s\n", IRCDDB_VERSION);
+	printf("VERSION %s\n", VERSION);
 	if (argc != 2) {
 		printf("usage: %s qn.cfg\n", argv[0]);
 		return 1;
