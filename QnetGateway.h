@@ -16,13 +16,13 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <libconfig.h++>
+#include <set>
+#include <map>
+#include <string>
 #include "QnetTypeDefs.h"
 #include "SEcho.h"
 
 #include "aprs.h"
-
-using namespace libconfig;
 
 #define IP_SIZE 15
 #define MAXHOSTNAMELEN 64
@@ -81,7 +81,7 @@ public:
 	CQnetGateway();
 	~CQnetGateway();
 	void Process();
-	int Init(char *cfgfile);
+	bool Init(char *cfgfile);
 
 private:
 	// text stuff
@@ -95,13 +95,14 @@ private:
 
 	std::string OWNER, owner, local_irc_ip, status_file, dtmf_dir, dtmf_file, echotest_dir, irc_pass, qnvoicefile;
 
-	bool bool_send_qrgs, bool_irc_debug, bool_log_debug, bool_dtmf_debug, bool_regen_header, bool_qso_details, bool_send_aprs, playNotInCache;
+	bool bool_send_qrgs, bool_irc_debug, bool_log_debug, bool_dtmf_debug, bool_regen_header, bool_qso_details, bool_send_aprs, playNotInCache, GATEWAY_HEALING;
 
 	int play_wait, play_delay, echotest_rec_timeout, voicemail_rec_timeout, from_remote_g2_timeout, from_local_rptr_timeout, dtmf_digit;
 
 	unsigned int vPacketCount;
 
 	std::map <uint32_t, uint16_t> portmap;
+	std::set<std::string> findRoute;
 
 	// data needed for aprs login and aprs beacon
 	// RPTR defined in aprs.h
@@ -162,6 +163,8 @@ private:
 	void ProcessTimeouts();
 	void ProcessSlowData(unsigned char *data, unsigned short sid);
 	bool Flag_is_ok(unsigned char flag);
+	void UnpackCallsigns(const std::string &str, std::set<std::string> &set, const std::string &delimiters = ",");
+	void PrintCallsigns(const std::string &key, const std::set<std::string> &set);
 
 	// read configuration file
 	bool read_config(char *);

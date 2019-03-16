@@ -18,49 +18,16 @@
  */
 
 I have substantially modified (and hopefully simplified) the configuration
-of this software, now, modules QnetGateway, QnetLink, QnetDVAP and QnetDVRPTR
-all use a single configuration file. Further, and this is the exciting
-part, NEARLY ALL of the parameters these modules need have a useful
-default value. If the default value is acceptible to you (and it
-probably will be) then you only need to specify what you need to change.
+of this software, all QnetIcomGateway programs use a single configuration
+file. Further, and this is the cool part, NEARLY ALL of the parameters these
+modules need already have a useful default value. If the default value is
+acceptable to you (and it probably will be) then you only need to specify
+what you need to change. This means that for most users, you will only need
+to specify a few parameters.
 
-
-This means that for most users, you will only need to specify a few
-parameters. For example, if you want to set up a 70cm dvap, your working
-configuration file might be:
-
--------------------------------------------------------------------
-# my configuration, using rr.openquad.net with my DVAP Dongle
-# on startup link module b to REF020C
-
-ircddb = {
-    login = "XX0XXX"
-}
-
-module = {
-	 b = {
-		type = "dvap"
-		frequency = 445.474
-		serial_number = "AP123456"
-	}
-}
-
-link = {
-	admin = [ "XX0XXX"]
-}
-
-dplus = {
-    authorize = true
-}
-
--------------------------------------------------------------------
-
-Of course, you can add other parameters, such as latitude and longitude,
-or a URL that will show up on the "User Gateways" page of
-www.openquad.net. This software is highly flexible, so you can have
-different modules running on different computers and these hidden
-configuration parameters to allow that are there, waiting to be defined.
-However, most hams won't have to bother with them!
+Not required, but you can specify other parameters, such as latitude and
+longitude, or a URL that will show up on the "User Gateways" page of
+www.openquad.net.
 
 Some other features are discussed below and are pretty much directly
 quoted from KI4LKF original documentation.
@@ -126,15 +93,12 @@ system, respectively. Also note that rpt1 is passed to these scripts\
 so you can use this as an input parameter for your scripts.
 Only admins can execute scripts, so set QnetLink.admin to your callsign
 
-Required software to run QnetGateway correctly:
---- QnetGateway: The G2 audio gateway. This handle routing using an IRCddb
+Required software to run QnetIcomGateway correctly:
+--- QnetIcomGateway: The G2 audio gateway. This handle routing using an IRCddb
           network and also handle echo and voicemail and some audio
           notifications.
---- QnetLink: This communicates with QnetGateway to link the local G2 gateway
+--- QnetLink: This communicates with QnetIcomGateway to link the local G2 gateway
           to reflectors.
---- QnetDVAP, QnetDVRPTR, QNetITAP (can only be used with a compatible
-          Icom radio that supports Terminal mode) or QnetRelay (used with
-          MMDVMHost-compatible modems like the ZUMspot or DVMega).
 
 ROUTING methods
 ===============
@@ -275,32 +239,3 @@ You may be thinking why did we put all this source code inside QnetLink
 instead of putting it all inside the Gateway software QnetGateway.
 Having divided the functionality produces a smaller memory and resource
 requirement for your computer.
-
-QnetDVAP
-
-The serial number required in the .cfg file is obtained from the label
-that can be seen on the DVAP circuit board. In most cases set the power
-to maximum level.
-
-QnetDVRPTR
-
-The serial number required in the qn.cfg file can most easily be obtained
-by examining the log file once the board has been powered up. Once you
-know the board serial number, edit g2.cfg. After editing g2.cfg file you
-can restart the effected program with "sudo systemctl restart qndvrptr".
-Or you can always just reboot with "sudo reboot" or "sudo shutdown -r now".
-
-Rig specific parameters are in "module.x.rf_rx_level", "module.x.inverse.rx" and
-"module.x.inverse.tx". You need to play with these to work best with your rig.
-With my Kenwood TM-V71, I use the default values.
-
-You can first start with inverse.rx, trying true or false. Use the echo command
-on your radio and look in the logs to see if you are getting into the
-dvprtr. Remember to restart the QnetDVRPTR service anytime you modify
-/usr/local/etc/g2.cfg. Once you are able to get into the QnetDVRPTR,
-then you can work out the inverse.tx paramter. Once you hear anything
-with in the echo mode, move rf_rx_level up or down to get the best
-audio.
-
-Once you have a working system, it's a good idea to back up you qn.cfg
-files.

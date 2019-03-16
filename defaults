@@ -49,22 +49,25 @@ gateway_ip_d='0.0.0.0'              # the g2 port
 gateway_external_ip_d='0.0.0.0'     # external ip
 gateway_external_port_d=40000       # don't change
 gateway_internal_ip_d='172.16.0.20' # internal ip address of the gateway
-gateway_module_ip_d='172.16.0.1'    # internal ip address of all Icom Stack modules
 gateway_internal_port_d=20000       # internal ip port number (for all modules!)
 gateway_latitude_d=0                # you can leave this unspecified for a mobile rig
 gateway_longitude_d=0               # like the latitude
 gateway_desc1_d=''                  # maximum of 20 characters, most special symbols are not allowed
 gateway_desc2_d=''                  # just like desc1
 gateway_url_d='github.com/n7tae/QnetGateway' # 80 characters max
+gateway_healing_d=false     # Gateway healing performs two task on incoming voice streams:
+      # 1) Up to 5 consecutive missing voice packets will be replaced by silent voice packets
+      # 2) Voice packets that arrive late will be ignored (they have already been replaced by silent packets)
 
 ##########################################################################################################################
 #
 # ICOM MODULE - These will be defined for any and all defined modules
 #
+module_x_ip='172.16.0.1'   # internal ip address of all Icom Stack modules
+module_x_port=20000        # internal port for all Icom Stack modules
 module_x_link_at_start=''  # For example, set to 'REF001 C' to link module to 1-charlie when the module starts.
 module_x_inactivity=0      # if no activity for this many minutes unlink reflector. Zero means no timer.
 module_x_callsign=''       # if you operate in a 'restriction mode', use your personal callsign. Usually leave this empty.
-module_x_packet_wait=25    # how many milliseconds to wait on packets in a voice stream
 module_x_acknowledge=false # Do you want an ACK back?
 module_x_ack_delay=250     # millisecond delay before acknowledgment
 module_x_frequency=0       # if you specify here, this frequency will show up on the QuadNet USER GATEWAYS webpage
@@ -129,7 +132,7 @@ dplus_priority_d=true       # set to true if you want DPlus reflector read after
 file_status_d='/usr/local/etc/rptr_status' # where repeater status info is passed between services
 file_dtmf_d='/tmp'                         # where DTMF is decoded
 file_echotest_d='/tmp'                     # echo dat files will end up here
-file_qnvoice_file_d='/tmp/qnvoice.txt'     # where qnvoice will create the play command
+file_qnvoicefile_d='/tmp/qnvoice.txt'     # where qnvoice will create the play command
 file_gwys_d='/usr/local/etc/gwys.txt'      # where the list of gateways and reflectors (with ports) is.
 file_announce_dir_d='/usr/local/etc'       # where the *.dat files are for the verbal link, unlink, etc. announcements
 

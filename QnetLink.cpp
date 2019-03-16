@@ -576,7 +576,7 @@ bool CQnetLink::ReadConfig(const char *cfgFile)
 	cfg.GetValue(key+"acknowledge", estr, bool_rptr_ack);
 	cfg.GetValue(key+"announce",    estr, announce);
 	cfg.GetValue(key+"incoming_ip", estr, my_g2_link_ip,       7, IP_SIZE);
-	cfg.GetValue(key+"link_port",   estr, my_g2_link_port, 10000,   65535);
+	cfg.GetValue(key+"port",        estr, my_g2_link_port, 10000,   65535);
 	cfg.GetValue(key+"ref_port",    estr, rmt_ref_port,    10000,   65535);
 	cfg.GetValue(key+"xrf_port",    estr, rmt_xrf_port,    10000,   65535);
 	cfg.GetValue(key+"dcs_port",    estr, rmt_dcs_port,    10000,   65535);
@@ -585,7 +585,7 @@ bool CQnetLink::ReadConfig(const char *cfgFile)
 	saved_max_dongles = max_dongles = (unsigned int)maxdongle;
 
 	key.assign("gateway_");
-	cfg.GetValue(key+"internal_ip",   estr, to_g2_external_ip,      7, IP_SIZE);
+	cfg.GetValue(key+"external_ip",   estr, to_g2_external_ip,      7, IP_SIZE);
 	cfg.GetValue(key+"external_port", estr, to_g2_external_port, 1024,   65535);
 
 	cfg.GetValue("log_qso", estr, qso_details);
@@ -593,7 +593,7 @@ bool CQnetLink::ReadConfig(const char *cfgFile)
 	key.assign("file_");
 	cfg.GetValue(key+"gwys",         estr,         gwys, 2, FILENAME_MAX);
 	cfg.GetValue(key+"status",       estr,  status_file, 2, FILENAME_MAX);
-	cfg.GetValue(key+"qnvoice_file", estr, qnvoice_file, 2, FILENAME_MAX);
+	cfg.GetValue(key+"qnvoicefile",  estr, qnvoice_file, 2, FILENAME_MAX);
 	cfg.GetValue(key+"announce_dir", estr, announce_dir, 2, FILENAME_MAX);
 
 	key.assign("timing_play_");

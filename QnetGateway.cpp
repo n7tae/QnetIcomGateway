@@ -48,10 +48,8 @@
 
 #include <future>
 #include <exception>
-#include <string>
 #include <thread>
 #include <chrono>
-#include <map>
 
 #include "IRCDDB.h"
 #include "IRCutils.h"
@@ -173,6 +171,35 @@ void CQnetGateway::calcPFCS(unsigned char *packet, int len)
 	return;
 }
 
+void CQnetGateway::UnpackCallsigns(const std::string &str, std::set<std::string> &set, const std::string &delimiters)
+{
+	std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);	// Skip delimiters at beginning.
+	std::string::size_type pos = str.find_first_of(delimiters, lastPos);	// Find first non-delimiter.
+
+	while (std::string::npos != pos || std::string::npos != lastPos) {
+		std::string element = str.substr(lastPos, pos-lastPos);
+		if (element.length()>=3 && element.length()<=6) {
+			ToUpper(element);
+			element.resize(CALL_SIZE, ' ');
+			set.insert(element);	// Found a token, add it to the list.
+		} else
+			fprintf(stderr, "found bad callsign in list: %s\n", str.c_str());
+		lastPos = str.find_first_not_of(delimiters, pos);	// Skip delimiters.
+		pos = str.find_first_of(delimiters, lastPos);	// Find next non-delimiter.
+	}
+}
+
+void CQnetGateway::PrintCallsigns(const std::string &key, const std::set<std::string> &set)
+{
+	printf("%s = [", key.c_str());
+	for (auto it=set.begin(); it!=set.end(); it++) {
+		if (it != set.begin())
+			printf(",");
+		printf("%s", (*it).c_str());
+	}
+	printf("]\n");
+}
+
 /* process configuration file */
 bool CQnetGateway::read_config(char *cfgFile)
 {
@@ -194,10 +221,10 @@ bool CQnetGateway::read_config(char *cfgFile)
 	ToUpper(OWNER);
 	printf("OWNER=[%s]\n", OWNER.c_str());
 	OWNER.resize(CALL_SIZE, ' ');
-	if (! cfg.GetValue(path+"host", estr, ircddb.ip, 3, MAXHOSTNAMELEN))
+	if (cfg.GetValue(path+"host", estr, ircddb.ip, 3, MAXHOSTNAMELEN))
 		return true;
 	cfg.GetValue(path+"port", estr, ircddb.port, 1000, 65535);
-	if(! cfg.GetValue(path+"password", estr, irc_pass, 0, 512))
+	if(cfg.GetValue(path+"password", estr, irc_pass, 0, 512))
 		return true;
 
 	// gateway
@@ -209,6 +236,14 @@ bool CQnetGateway::read_config(char *cfgFile)
 	cfg.GetValue(path+"external_port",  estr, g2_external.port, 1024,   65535);
 	cfg.GetValue(path+"internal_ip",    estr, g2_internal.ip,      7, IP_SIZE);
 	cfg.GetValue(path+"internal_port",  estr, g2_internal.port, 1024,   65535);
+	cfg.GetValue(path+"healing",        estr, GATEWAY_HEALING);
+	path.append("find_route");	// this has to be the last gateway_ key value
+	if (cfg.KeyExists(path)) {
+		std::string csv;
+		cfg.GetValue(path, estr, csv, 0, 10240);
+		UnpackCallsigns(csv, findRoute);
+		PrintCallsigns(path, findRoute);
+	}
 
 	// modules
 	for (short int m=0; m<3; m++) {
@@ -218,25 +253,25 @@ bool CQnetGateway::read_config(char *cfgFile)
 		if (cfg.GetValue(path, estr, type, 1, 16))
 			rptr.mod[m].defined = false;
 		else {
+			rptr.mod[m].defined = true;
 			if (0 == type.compare("icom")) {
 				rptr.mod[m].package_version = VERSION;
 			} else {
 				printf("module type '%s' is invalid\n", type.c_str());
 				return true;
 			}
-			rptr.mod[m].defined = true;
-
-			cfg.GetValue("gateway_module_ip",     estr, rptr.mod[m].portip.ip,        7,   IP_SIZE);
-			cfg.GetValue("gateway_internal_port", estr, rptr.mod[m].portip.port,   1024,     65535);
-			cfg.GetValue(path+"frequency",        type, rptr.mod[m].frequency,      0.0,    1.0e12);
-			cfg.GetValue(path+"offset",           type, rptr.mod[m].offset,     -1.0e12,    1.0e12);
-			cfg.GetValue(path+"range",            type, rptr.mod[m].range,          0.0, 1609344.0);
-			cfg.GetValue(path+"agl",              type, rptr.mod[m].agl,            0.0,    1000.0);
-			cfg.GetValue("gateway_latitude",      estr, rptr.mod[m].latitude,     -90.0,      90.0);
-			cfg.GetValue("gateway_longitude",     estr, rptr.mod[m].longitude,   -180.0,     180.0);
-			cfg.GetValue("gateway_desc1",         estr, rptr.mod[m].desc1,            0,        20);
-			cfg.GetValue("gateway_desc2",         estr, rptr.mod[m].desc2,            0,        20);
-			cfg.GetValue("gateway_url",           estr, rptr.mod[m].url,              0,        80);
+			path.append(1, '_');
+			cfg.GetValue(path+"ip",           estr, rptr.mod[m].portip.ip,        7,   IP_SIZE);
+			cfg.GetValue(path+"port",         estr, rptr.mod[m].portip.port,   1024,     65535);
+			cfg.GetValue(path+"frequency",    type, rptr.mod[m].frequency,      0.0,    1.0e12);
+			cfg.GetValue(path+"offset",       type, rptr.mod[m].offset,     -1.0e12,    1.0e12);
+			cfg.GetValue(path+"range",        type, rptr.mod[m].range,          0.0, 1609344.0);
+			cfg.GetValue(path+"agl",          type, rptr.mod[m].agl,            0.0,    1000.0);
+			cfg.GetValue("gateway_latitude",  estr, rptr.mod[m].latitude,     -90.0,      90.0);
+			cfg.GetValue("gateway_longitude", estr, rptr.mod[m].longitude,   -180.0,     180.0);
+			cfg.GetValue("gateway_desc1",     estr, rptr.mod[m].desc1,            0,        20);
+			cfg.GetValue("gateway_desc2",     estr, rptr.mod[m].desc2,            0,        20);
+			cfg.GetValue("gateway_url",       estr, rptr.mod[m].url,              0,        80);
 			// truncate strings
 			if (rptr.mod[m].desc1.length() > 20)
 				rptr.mod[m].desc1.resize(20);
@@ -251,6 +286,22 @@ bool CQnetGateway::read_config(char *cfgFile)
 	if (rptr.mod[0].defined==false && rptr.mod[1].defined==false && rptr.mod[2].defined==false) {
 		printf("No modules defined!\n");
 		return true;
+	} else {
+		std::string addr;
+		int port;
+		for (int i=0; i<3; i++) {
+			if (rptr.mod[i].defined) {
+				if (addr.size()) {
+					if (addr.compare(rptr.mod[i].portip.ip) || port!=rptr.mod[i].portip.port) {
+						fprintf(stderr, "all defined ICOM modules must have the same IP address and port number!\n");
+						return true;
+					}
+				} else {
+					addr = rptr.mod[i].portip.ip;
+					port = rptr.mod[i].portip.port;
+				}
+			}
+		}
 	}
 
 	// APRS
@@ -358,6 +409,7 @@ void CQnetGateway::GetIRCDataThread()
 	for (int i=0; i<3; i++)
 		not_announced[i] = this->rptr.mod[i].defined;	// announce to all modules that are defined!
 	bool is_quadnet = (0 == ircddb.ip.compare("rr.openquad.net"));
+	bool doFind = true;
 	while (keep_running) {
 		int rc = ii->getConnectionState();
 		if (rc > 5 && rc < 8 && is_quadnet) {
@@ -381,6 +433,15 @@ void CQnetGateway::GetIRCDataThread()
 					} else
 						fprintf(stderr, "could not open %s\n", qnvoicefile.c_str());
 				}
+			}
+			if (doFind) {
+				printf("Finding Routes for...\n");
+				for (auto it=findRoute.begin(); it!=findRoute.end(); it++) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(800));
+					printf("\t'%s'\n", it->c_str());
+					ii->findUser(*it);
+				}
+				doFind = false;
 			}
 		}
 		threshold++;
@@ -1177,7 +1238,7 @@ void CQnetGateway::Process()
 							int diff = int(0x3FU & g2buf.ctrl) - int(lastctrl);
 							if (diff < 0)
 								diff += 21;
-							if (diff > 1 && diff < 6) {	// fill up to 5 missing voice frames
+							if (diff > 1 && diff < 6 && GATEWAY_HEALING) {	// fill up to 5 missing voice frames
 								if (bool_log_debug)
 									fprintf(stderr, "Warning: inserting %d missing voice frame(s)\n", diff - 1);
 								SDSTR dstr;
@@ -1197,16 +1258,19 @@ void CQnetGateway::Process()
 								}
 							}
 
-							if (((lastctrl + 1U) % 21U == (0x3FU & g2buf.ctrl)) || (0x40U & g2buf.ctrl)) {
-								// no matter what, we will send this on if it is the closing frame
-								lastctrl = (0x3FU & g2buf.ctrl);
-								rptrbuf.counter = htons(G2_COUNTER_OUT++);
-								sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
+							if (GATEWAY_HEALING) {
+								if (((lastctrl + 1U) % 21U == (0x3FU & g2buf.ctrl)) || (0x40U & g2buf.ctrl)) {
+									// no matter what, we will send this on if it is the closing frame
+									lastctrl = (0x3FU & g2buf.ctrl);
+									rptrbuf.counter = htons(G2_COUNTER_OUT++);
+									sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
+								} else {
+									if (bool_log_debug)
+										fprintf(stderr, "Warning: Ignoring packet because its ctrl=0x%02xU and lastctrl=0x%02xU\n", g2buf.ctrl, lastctrl);
+								}
 							} else {
-								if (bool_log_debug)
-									fprintf(stderr, "Warning: Ignoring packet because its ctrl=0x%02xU and lastctrl=0x%02xU\n", g2buf.ctrl, lastctrl);
+								sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
 							}
-
 							/* timeit */
 							time(&toRptr[i].last_time);
 
@@ -2415,7 +2479,7 @@ void CQnetGateway::qrgs_and_maps()
 	return;
 }
 
-int CQnetGateway::Init(char *cfgfile)
+bool CQnetGateway::Init(char *cfgfile)
 {
 	short int i;
 	struct sigaction act;
@@ -2427,7 +2491,7 @@ int CQnetGateway::Init(char *cfgfile)
 	int rc = regcomp(&preg, "^(([1-9][A-Z])|([A-Z][0-9])|([A-Z][A-Z][0-9]))[0-9A-Z]*[A-Z][ ]*[ A-RT-Z]$", REG_EXTENDED | REG_NOSUB);
 	if (rc != REG_NOERROR) {
 		printf("The IRC regular expression is NOT valid\n");
-		return 1;
+		return true;
 	}
 
 	act.sa_handler = sigCatch;
@@ -2435,24 +2499,25 @@ int CQnetGateway::Init(char *cfgfile)
 	act.sa_flags = SA_RESTART;
 	if (sigaction(SIGTERM, &act, 0) != 0) {
 		printf("sigaction-TERM failed, error=%d\n", errno);
-		return 1;
+		return true;
 	}
 	if (sigaction(SIGINT, &act, 0) != 0) {
 		printf("sigaction-INT failed, error=%d\n", errno);
-		return 1;
+		return true;
 	}
 	if (sigaction(SIGPIPE, &act, 0) != 0) {
 		printf("sigaction-PIPE failed, error=%d\n", errno);
-		return 1;
+		return true;
 	}
 
 	for (i = 0; i < 3; i++)
 		memset(&band_txt[0], 0, sizeof(SBANDTXT));
 
 	/* process configuration file */
+	printf("Reading Configuration file %s...\n", cfgfile);
 	if ( read_config(cfgfile) ) {
 		printf("Failed to process config file %s\n", cfgfile);
-		return 1;
+		return true;
 	}
 
 	playNotInCache = false;
@@ -2520,7 +2585,7 @@ int CQnetGateway::Init(char *cfgfile)
 	bool ok = ii->open();
 	if (!ok) {
 		printf("irc open failed\n");
-		return 1;
+		return true;
 	}
 
 	rc = ii->getConnectionState();
@@ -2548,7 +2613,7 @@ int CQnetGateway::Init(char *cfgfile)
 	g2_sock = open_port(g2_external);
 	if (0 > g2_sock) {
 		printf("Can't open %s:%d\n", g2_external.ip.c_str(), g2_external.port);
-		return 1;
+		return true;
 	}
 
 	// Open G2 INTERNAL:
@@ -2557,7 +2622,7 @@ int CQnetGateway::Init(char *cfgfile)
 	srv_sock = open_port(g2_internal);
 	if (0 > srv_sock) {
 		printf("Can't open %s:%d\n", g2_internal.ip.c_str(), g2_internal.port);
-		return 1;
+		return true;
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -2633,11 +2698,12 @@ int CQnetGateway::Init(char *cfgfile)
 
 	if (bool_send_qrgs)
 		qrgs_and_maps();
-	return 0;
+	return false;
 }
 
 CQnetGateway::CQnetGateway()
 {
+	ii = NULL;
 }
 
 CQnetGateway::~CQnetGateway()
@@ -2669,8 +2735,10 @@ CQnetGateway::~CQnetGateway()
 		}
 	}
 
-	ii->close();
-	delete ii;
+	if (ii) {
+		ii->close();
+		delete ii;
+	}
 
 	printf("QnetGateway exiting\n");
 }
