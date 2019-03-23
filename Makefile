@@ -66,6 +66,7 @@ install : $(PROGRAMS) gwys.txt qn.cfg
 	######### QnetGateway #########
 	/bin/cp -f qngateway $(BINDIR)
 	/bin/cp -f qnremote qnvoice $(BINDIR)
+	/bin/cp -f defaults $(CFGDIR)
 	/bin/ln -s $(shell pwd)/qn.cfg $(CFGDIR)
 	/bin/cp -f system/qngateway.service $(SYSDIR)
 	systemctl enable qngateway.service
@@ -97,6 +98,7 @@ uninstall :
 	/bin/rm -f $(BINDIR)/qnremote
 	/bin/rm -f $(BINDIR)/qnvoice
 	/bin/rm -f $(CFGDIR)/qn.cfg
+	/bin/rm -f $(CFGDIR)/defaults
 	######### QnetLink #########
 	systemctl stop qnlink.service
 	systemctl disable qnlink.service
