@@ -52,7 +52,7 @@
 #include "QnetConfigure.h"
 #include "QnetLink.h"
 
-#define VERSION "QnetLink-1.00"
+#define VERSION "QnetLink-1.01"
 
 
 std::atomic<bool> CQnetLink::keep_running(true);
@@ -537,7 +537,8 @@ bool CQnetLink::ReadConfig(const char *cfgFile)
 			modules++;
 			cfg.GetValue(key+"_inactivity", modem_type, rf_inactivity_timer[i], 0, 300);
 			rf_inactivity_timer[i] *= 60;
-			cfg.GetValue(key+"_link_at_start", modem_type, link_at_startup[i], 8, 8);
+			if (cfg.KeyExists(key+"_link_at_start"))
+				cfg.GetValue(key+"_link_at_start", modem_type, link_at_startup[i], 8, 8);
 		}
 	}
 	if (0 == modules) {
