@@ -250,9 +250,8 @@ bool CQnetGateway::read_config(char *cfgFile)
 		path.assign("module_");
 		path.append(1, 'a'+m);
 		std::string type;
-		if (cfg.GetValue(path, estr, type, 1, 16))
-			rptr.mod[m].defined = false;
-		else {
+		if (cfg.KeyExists(path)) {
+			cfg.GetValue(path, estr, type, 1, 16);
 			rptr.mod[m].defined = true;
 			if (0 == type.compare("icom")) {
 				rptr.mod[m].package_version = VERSION;
@@ -261,8 +260,8 @@ bool CQnetGateway::read_config(char *cfgFile)
 				return true;
 			}
 			path.append(1, '_');
-			cfg.GetValue(path+"ip",           estr, rptr.mod[m].portip.ip,        7,   IP_SIZE);
-			cfg.GetValue(path+"port",         estr, rptr.mod[m].portip.port,   1024,     65535);
+			cfg.GetValue(path+"ip",           type, rptr.mod[m].portip.ip,        7,   IP_SIZE);
+			cfg.GetValue(path+"port",         type, rptr.mod[m].portip.port,   1024,     65535);
 			cfg.GetValue(path+"frequency",    type, rptr.mod[m].frequency,      0.0,    1.0e12);
 			cfg.GetValue(path+"offset",       type, rptr.mod[m].offset,     -1.0e12,    1.0e12);
 			cfg.GetValue(path+"range",        type, rptr.mod[m].range,          0.0, 1609344.0);
@@ -281,7 +280,8 @@ bool CQnetGateway::read_config(char *cfgFile)
 			if (rptr.mod[m].desc1.length())
 				rptr.mod[m].desc = rptr.mod[m].desc1 + ' ';
 			rptr.mod[m].desc += rptr.mod[m].desc2;
-		}
+		} else
+			rptr.mod[m].defined = false;
 	}
 	if (rptr.mod[0].defined==false && rptr.mod[1].defined==false && rptr.mod[2].defined==false) {
 		printf("No modules defined!\n");
@@ -306,7 +306,7 @@ bool CQnetGateway::read_config(char *cfgFile)
 
 	// APRS
 	path.assign("aprs_");
-	cfg.GetValue(path+"send",     estr, bool_send_aprs);
+	cfg.GetValue(path+"enable",   estr, bool_send_aprs);
 	cfg.GetValue(path+"host",     estr, rptr.aprs.ip,        7, MAXHOSTNAMELEN);
 	cfg.GetValue(path+"port",     estr, rptr.aprs.port,  10000,          65535);
 	cfg.GetValue(path+"interval", estr, rptr.aprs_interval, 40,           1000);
