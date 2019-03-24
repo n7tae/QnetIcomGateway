@@ -56,7 +56,7 @@
 #include "QnetGateway.h"
 #include "QnetConfigure.h"
 
-#define VERSION "QnetIcomGateway-0.0.0"
+#define VERSION "QnetIcomGateway-0.0.1"
 
 extern void dstar_dv_init();
 extern int dstar_dv_decode(const unsigned char *d, int data[3]);
@@ -1097,30 +1097,36 @@ void CQnetGateway::Process()
 
 	ii->kickWatchdog(VERSION);
 
-	// send INIT to Icom Stack
-	unsigned char buf[500];
-	memset(buf, 0, 10);
-	memcpy(buf, "INIT", 4);
-	buf[6] = 0x73U;
-	// we can use the module a band_addr for INIT
-	sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
-	printf("Waiting for ICOM controller...\n");
+	do {
+		int defined;
+		for (defined=0; defined<3; defined++)
+			if (rptr.mod[defined].defined)
+				break;
+		// send INIT to Icom Stack
+		unsigned char buf[500];
+		memset(buf, 0, 10);
+		memcpy(buf, "INIT", 4);
+		buf[6] = 0x73U;
+		// we can use the module a band_addr for INIT
+		sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[defined].band_addr, sizeof(struct sockaddr_in));
+		printf("Waiting for ICOM controller...\n");
 
-	// get the acknowledgement from the ICOM Stack
-	while (keep_running) {
-		socklen_t fromlength = sizeof(struct sockaddr_in);
-		int recvlen = recvfrom(srv_sock, buf, 500, 0, (struct sockaddr *)&fromRptr, &fromlength);
-		if (10==recvlen && 0==memcmp(buf, "INIT", 4) && 0x72U==buf[6] && 0x0U==buf[7]) {
-			OLD_REPLY_SEQ = 256U * buf[4] + buf[5];
-			NEW_REPLY_SEQ = OLD_REPLY_SEQ + 1;
-			G2_COUNTER_OUT = NEW_REPLY_SEQ;
-			unsigned int ui = G2_COUNTER_OUT;
-			printf("SYNC: old=%u, new=%u out=%u\n", OLD_REPLY_SEQ, NEW_REPLY_SEQ, ui);
-			break;
+		// get the acknowledgement from the ICOM Stack
+		while (keep_running) {
+			socklen_t fromlength = sizeof(struct sockaddr_in);
+			int recvlen = recvfrom(srv_sock, buf, 500, 0, (struct sockaddr *)&fromRptr, &fromlength);
+			if (10==recvlen && 0==memcmp(buf, "INIT", 4) && 0x72U==buf[6] && 0x0U==buf[7]) {
+				OLD_REPLY_SEQ = 256U * buf[4] + buf[5];
+				NEW_REPLY_SEQ = OLD_REPLY_SEQ + 1;
+				G2_COUNTER_OUT = NEW_REPLY_SEQ;
+				unsigned int ui = G2_COUNTER_OUT;
+				printf("SYNC: old=%u, new=%u out=%u\n", OLD_REPLY_SEQ, NEW_REPLY_SEQ, ui);
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-	printf("Detected ICOM controller!\n");
+		printf("Detected ICOM controller!\n");
+	} while (false);
 
 	while (keep_running) {
 		ProcessTimeouts();
