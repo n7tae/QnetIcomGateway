@@ -99,6 +99,8 @@ private:
 
 	int play_wait, play_delay, echotest_rec_timeout, voicemail_rec_timeout, from_remote_g2_timeout, from_local_rptr_timeout, dtmf_digit;
 
+	int avalidmodule;
+
 	unsigned int vPacketCount;
 
 	std::map <uint32_t, uint16_t> portmap;

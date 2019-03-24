@@ -253,6 +253,7 @@ bool CQnetGateway::read_config(char *cfgFile)
 		if (cfg.KeyExists(path)) {
 			cfg.GetValue(path, estr, type, 1, 16);
 			rptr.mod[m].defined = true;
+			avalidmodule = m;
 			if (0 == type.compare("icom")) {
 				rptr.mod[m].package_version = VERSION;
 			} else {
@@ -1098,17 +1099,13 @@ void CQnetGateway::Process()
 	ii->kickWatchdog(VERSION);
 
 	do {
-		int defined;
-		for (defined=0; defined<3; defined++)
-			if (rptr.mod[defined].defined)
-				break;
 		// send INIT to Icom Stack
 		unsigned char buf[500];
 		memset(buf, 0, 10);
 		memcpy(buf, "INIT", 4);
 		buf[6] = 0x73U;
 		// we can use the module a band_addr for INIT
-		sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[defined].band_addr, sizeof(struct sockaddr_in));
+		sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[avalidmodule].band_addr, sizeof(struct sockaddr_in));
 		printf("Waiting for ICOM controller...\n");
 
 		// get the acknowledgement from the ICOM Stack
@@ -1384,7 +1381,7 @@ void CQnetGateway::Process()
 				} else if (0x73U==rptrbuf.flag[0] && (0x21U==rptrbuf.flag[1] || 0x11U==rptrbuf.flag[1] || 0x0U==rptrbuf.flag[1])) {
 					rptrbuf.flag[0] = 0x72U;
 					memset(rptrbuf.flag+1, 0x0U, 3);
-					sendto(srv_sock, rptrbuf.pkt_id, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
+					sendto(srv_sock, rptrbuf.pkt_id, 10, 0, (struct sockaddr *)&toRptr[avalidmodule].band_addr, sizeof(struct sockaddr_in));
 				// end of ICOM handshaking
 				/////////////////////////////////////////////////////////////////////
 				} else if ( (recvlen==58 || recvlen==29 || recvlen==32) && rptrbuf.flag[0]==0x73 && rptrbuf.flag[1]==0x12 && rptrbuf.flag[2]==0x0 && rptrbuf.vpkt.icm_id==0x20 && (rptrbuf.remaining==0x30 || rptrbuf.remaining==0x13 || rptrbuf.remaining==0x16) ) {
@@ -1394,7 +1391,7 @@ void CQnetGateway::Process()
 						reply.counter = rptrbuf.counter;
 						reply.flag[0] = 0x72U;
 						memset(reply.flag+1, 0, 3);
-						sendto(srv_sock, reply.pkt_id, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
+						sendto(srv_sock, reply.pkt_id, 10, 0, (struct sockaddr *)&toRptr[avalidmodule].band_addr, sizeof(struct sockaddr_in));
 					} while(false);
 
 					if (recvlen == 58) {
