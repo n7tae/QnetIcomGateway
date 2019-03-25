@@ -584,7 +584,7 @@ bool CQnetLink::ReadConfig(const char *cfgFile)
 	saved_max_dongles = max_dongles = (unsigned int)maxdongle;
 
 	key.assign("gateway_");
-	cfg.GetValue(key+"external_ip",   estr, to_g2_external_ip,      7, IP_SIZE);
+	cfg.GetValue(key+"ip",            estr, to_g2_internal_ip,      7, IP_SIZE);
 	cfg.GetValue(key+"external_port", estr, to_g2_external_port, 1024,   65535);
 
 	cfg.GetValue("log_qso", estr, qso_details);
@@ -707,10 +707,10 @@ bool CQnetLink::srv_open()
 		return false;
 	}
 
-	/* the local G2 external runs on this IP and port */
+	/* the local G2 runs on this IP and port */
 	memset(&toLocalg2, 0, sizeof(struct sockaddr_in));
 	toLocalg2.sin_family = AF_INET;
-	toLocalg2.sin_addr.s_addr = inet_addr(to_g2_external_ip.c_str());
+	toLocalg2.sin_addr.s_addr = inet_addr(to_g2_internal_ip.c_str());
 	toLocalg2.sin_port = htons(to_g2_external_port);
 
 	/* initialize all remote links */
