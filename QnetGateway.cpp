@@ -640,7 +640,7 @@ void CQnetGateway::ProcessTimeouts()
 		if (recd[i].last_time != 0) {
 			time(&t_now);
 			if ((t_now - recd[i].last_time) > echotest_rec_timeout) {
-				printf("Inactivity on echotest recording mod %d, removing stream id=%04x\n", i, recd[i].streamid);
+				printf("Inactivity on echotest recording mod %d, removing stream id=%04x\n", i, ntohs(recd[i].streamid));
 
 				recd[i].streamid = 0;
 				recd[i].last_time = 0;
@@ -665,7 +665,7 @@ void CQnetGateway::ProcessTimeouts()
 		if (vm[i].last_time != 0) {
 			time(&t_now);
 			if ((t_now - vm[i].last_time) > voicemail_rec_timeout) {
-				printf("Inactivity on voicemail recording mod %d, removing stream id=%04x\n", i, vm[i].streamid);
+				printf("Inactivity on voicemail recording mod %d, removing stream id=%04x\n", i, ntohs(vm[i].streamid));
 
 				vm[i].streamid = 0;
 				vm[i].last_time = 0;
@@ -682,7 +682,7 @@ void CQnetGateway::ProcessTimeouts()
 			//   so we could use either FROM_LOCAL_RPTR_TIMEOUT or FROM_REMOTE_G2_TIMEOUT
 			//   but FROM_REMOTE_G2_TIMEOUT makes more sense, probably is a bigger number
 			if ((t_now - toRptr[i].last_time) > from_remote_g2_timeout) {
-				printf("Inactivity to local rptr mod index %d, removing stream id %04x\n", i, toRptr[i].streamid);
+				printf("Inactivity to local rptr mod index %d, removing stream id %04x\n", i, ntohs(toRptr[i].streamid));
 
 				// Send end_of_audio to local repeater.
 				// Let the repeater re-initialize
@@ -712,7 +712,7 @@ void CQnetGateway::ProcessTimeouts()
 			if ((t_now - band_txt[i].last_time) > from_local_rptr_timeout) {
 				/* This local stream never went to a remote system, so trace the timeout */
 				if (to_remote_g2[i].toDst4.sin_addr.s_addr == 0)
-					printf("Inactivity from local rptr band %d, removing stream id %04x\n", i, band_txt[i].streamID);
+					printf("Inactivity from local rptr band %d, removing stream id %04x\n", i, ntohs(band_txt[i].streamID));
 
 				band_txt[i].streamID = 0;
 				band_txt[i].flags[0] = band_txt[i].flags[1] = band_txt[i].flags[2] = 0x0;
@@ -739,7 +739,7 @@ void CQnetGateway::ProcessTimeouts()
 		if (to_remote_g2[i].toDst4.sin_addr.s_addr != 0) {
 			time(&t_now);
 			if ((t_now - to_remote_g2[i].last_time) > from_local_rptr_timeout) {
-				printf("Inactivity from local rptr mod %d, removing stream id %04x\n", i, to_remote_g2[i].streamid);
+				printf("Inactivity from local rptr mod %d, removing stream id %04x\n", i, ntohs(to_remote_g2[i].streamid));
 
 				memset(&(to_remote_g2[i].toDst4),0,sizeof(struct sockaddr_in));
 				to_remote_g2[i].streamid = 0;
