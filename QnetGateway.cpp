@@ -1189,7 +1189,6 @@ void CQnetGateway::Process()
 							memcpy(rptrbuf.vpkt.hdr.my,   g2buf.hdr.mycall, 8);
 							memcpy(rptrbuf.vpkt.hdr.nm,   g2buf.hdr.sfx,    4);
 							memcpy(rptrbuf.vpkt.hdr.pfcs, g2buf.hdr.pfcs,   2);
-if (bool_qso_details) printf("Sending to %s:%u: r1=%.8s r2=%.8s\n", inet_ntoa(toRptr[i].band_addr.sin_addr), ntohs(toRptr[i].band_addr.sin_port), rptrbuf.vpkt.hdr.r1, rptrbuf.vpkt.hdr.r2);
 							sendto(srv_sock, rptrbuf.pkt_id, 58, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
 
 							/* save the header */
