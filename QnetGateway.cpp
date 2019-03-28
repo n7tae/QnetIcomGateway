@@ -1272,6 +1272,7 @@ if (bool_qso_details) printf("Sending to %s:%u: r1=%.8s r2=%.8s\n", inet_ntoa(to
 										fprintf(stderr, "Warning: Ignoring packet because its ctrl=0x%02xU and lastctrl=0x%02xU\n", g2buf.ctrl, lastctrl);
 								}
 							} else {
+								rptrbuf.counter = htons(G2_COUNTER_OUT++);
 								sendto(srv_sock, rptrbuf.pkt_id, 29, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
 							}
 							/* timeit */
