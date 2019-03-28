@@ -56,7 +56,7 @@
 #include "QnetGateway.h"
 #include "QnetConfigure.h"
 
-#define VERSION "QnetIcomGateway-0.0.0"
+#define VERSION "QnetIcomGateway-0.0.1"
 
 extern void dstar_dv_init();
 extern int dstar_dv_decode(const unsigned char *d, int data[3]);
@@ -250,10 +250,10 @@ bool CQnetGateway::read_config(char *cfgFile)
 		path.assign("module_");
 		path.append(1, 'a'+m);
 		std::string type;
-		if (cfg.GetValue(path, estr, type, 1, 16))
-			rptr.mod[m].defined = false;
-		else {
+		if (cfg.KeyExists(path)) {
+			cfg.GetValue(path, estr, type, 1, 16);
 			rptr.mod[m].defined = true;
+			avalidmodule = m;
 			if (0 == type.compare("icom")) {
 				rptr.mod[m].package_version = VERSION;
 			} else {
@@ -261,8 +261,8 @@ bool CQnetGateway::read_config(char *cfgFile)
 				return true;
 			}
 			path.append(1, '_');
-			cfg.GetValue(path+"ip",           estr, rptr.mod[m].portip.ip,        7,   IP_SIZE);
-			cfg.GetValue(path+"port",         estr, rptr.mod[m].portip.port,   1024,     65535);
+			cfg.GetValue(path+"ip",           type, rptr.mod[m].portip.ip,        7,   IP_SIZE);
+			cfg.GetValue(path+"port",         type, rptr.mod[m].portip.port,   1024,     65535);
 			cfg.GetValue(path+"frequency",    type, rptr.mod[m].frequency,      0.0,    1.0e12);
 			cfg.GetValue(path+"offset",       type, rptr.mod[m].offset,     -1.0e12,    1.0e12);
 			cfg.GetValue(path+"range",        type, rptr.mod[m].range,          0.0, 1609344.0);
@@ -281,7 +281,8 @@ bool CQnetGateway::read_config(char *cfgFile)
 			if (rptr.mod[m].desc1.length())
 				rptr.mod[m].desc = rptr.mod[m].desc1 + ' ';
 			rptr.mod[m].desc += rptr.mod[m].desc2;
-		}
+		} else
+			rptr.mod[m].defined = false;
 	}
 	if (rptr.mod[0].defined==false && rptr.mod[1].defined==false && rptr.mod[2].defined==false) {
 		printf("No modules defined!\n");
@@ -306,7 +307,7 @@ bool CQnetGateway::read_config(char *cfgFile)
 
 	// APRS
 	path.assign("aprs_");
-	cfg.GetValue(path+"send",     estr, bool_send_aprs);
+	cfg.GetValue(path+"enable",   estr, bool_send_aprs);
 	cfg.GetValue(path+"host",     estr, rptr.aprs.ip,        7, MAXHOSTNAMELEN);
 	cfg.GetValue(path+"port",     estr, rptr.aprs.port,  10000,          65535);
 	cfg.GetValue(path+"interval", estr, rptr.aprs_interval, 40,           1000);
@@ -1097,30 +1098,32 @@ void CQnetGateway::Process()
 
 	ii->kickWatchdog(VERSION);
 
-	// send INIT to Icom Stack
-	unsigned char buf[500];
-	memset(buf, 0, 10);
-	memcpy(buf, "INIT", 4);
-	buf[6] = 0x73U;
-	// we can use the module a band_addr for INIT
-	sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
-	printf("Waiting for ICOM controller...\n");
+	do {
+		// send INIT to Icom Stack
+		unsigned char buf[500];
+		memset(buf, 0, 10);
+		memcpy(buf, "INIT", 4);
+		buf[6] = 0x73U;
+		// we can use the module a band_addr for INIT
+		sendto(srv_sock, buf, 10, 0, (struct sockaddr *)&toRptr[avalidmodule].band_addr, sizeof(struct sockaddr_in));
+		printf("Waiting for ICOM controller...\n");
 
-	// get the acknowledgement from the ICOM Stack
-	while (keep_running) {
-		socklen_t fromlength = sizeof(struct sockaddr_in);
-		int recvlen = recvfrom(srv_sock, buf, 500, 0, (struct sockaddr *)&fromRptr, &fromlength);
-		if (10==recvlen && 0==memcmp(buf, "INIT", 4) && 0x72U==buf[6] && 0x0U==buf[7]) {
-			OLD_REPLY_SEQ = 256U * buf[4] + buf[5];
-			NEW_REPLY_SEQ = OLD_REPLY_SEQ + 1;
-			G2_COUNTER_OUT = NEW_REPLY_SEQ;
-			unsigned int ui = G2_COUNTER_OUT;
-			printf("SYNC: old=%u, new=%u out=%u\n", OLD_REPLY_SEQ, NEW_REPLY_SEQ, ui);
-			break;
+		// get the acknowledgement from the ICOM Stack
+		while (keep_running) {
+			socklen_t fromlength = sizeof(struct sockaddr_in);
+			int recvlen = recvfrom(srv_sock, buf, 500, 0, (struct sockaddr *)&fromRptr, &fromlength);
+			if (10==recvlen && 0==memcmp(buf, "INIT", 4) && 0x72U==buf[6] && 0x0U==buf[7]) {
+				OLD_REPLY_SEQ = 256U * buf[4] + buf[5];
+				NEW_REPLY_SEQ = OLD_REPLY_SEQ + 1;
+				G2_COUNTER_OUT = NEW_REPLY_SEQ;
+				unsigned int ui = G2_COUNTER_OUT;
+				printf("SYNC: old=%u, new=%u out=%u\n", OLD_REPLY_SEQ, NEW_REPLY_SEQ, ui);
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-	printf("Detected ICOM controller!\n");
+		printf("Detected ICOM controller!\n");
+	} while (false);
 
 	while (keep_running) {
 		ProcessTimeouts();
@@ -1186,7 +1189,7 @@ void CQnetGateway::Process()
 							memcpy(rptrbuf.vpkt.hdr.my,   g2buf.hdr.mycall, 8);
 							memcpy(rptrbuf.vpkt.hdr.nm,   g2buf.hdr.sfx,    4);
 							memcpy(rptrbuf.vpkt.hdr.pfcs, g2buf.hdr.pfcs,   2);
-
+if (bool_qso_details) printf("Sending to %s:%u: r1=%.8s r2=%.8s\n", inet_ntoa(toRptr[i].band_addr.sin_addr), ntohs(toRptr[i].band_addr.sin_port), rptrbuf.vpkt.hdr.r1, rptrbuf.vpkt.hdr.r2);
 							sendto(srv_sock, rptrbuf.pkt_id, 58, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
 
 							/* save the header */
@@ -1378,7 +1381,7 @@ void CQnetGateway::Process()
 				} else if (0x73U==rptrbuf.flag[0] && (0x21U==rptrbuf.flag[1] || 0x11U==rptrbuf.flag[1] || 0x0U==rptrbuf.flag[1])) {
 					rptrbuf.flag[0] = 0x72U;
 					memset(rptrbuf.flag+1, 0x0U, 3);
-					sendto(srv_sock, rptrbuf.pkt_id, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
+					sendto(srv_sock, rptrbuf.pkt_id, 10, 0, (struct sockaddr *)&toRptr[avalidmodule].band_addr, sizeof(struct sockaddr_in));
 				// end of ICOM handshaking
 				/////////////////////////////////////////////////////////////////////
 				} else if ( (recvlen==58 || recvlen==29 || recvlen==32) && rptrbuf.flag[0]==0x73 && rptrbuf.flag[1]==0x12 && rptrbuf.flag[2]==0x0 && rptrbuf.vpkt.icm_id==0x20 && (rptrbuf.remaining==0x30 || rptrbuf.remaining==0x13 || rptrbuf.remaining==0x16) ) {
@@ -1388,7 +1391,7 @@ void CQnetGateway::Process()
 						reply.counter = rptrbuf.counter;
 						reply.flag[0] = 0x72U;
 						memset(reply.flag+1, 0, 3);
-						sendto(srv_sock, reply.pkt_id, 10, 0, (struct sockaddr *)&toRptr[0].band_addr, sizeof(struct sockaddr_in));
+						sendto(srv_sock, reply.pkt_id, 10, 0, (struct sockaddr *)&toRptr[avalidmodule].band_addr, sizeof(struct sockaddr_in));
 					} while(false);
 
 					if (recvlen == 58) {

@@ -45,7 +45,7 @@ ircddb_password_d='1111111111111' # not needed for rr.openquad.net
 gateway_header_regen_d=true         # regenerate headers from incoming data
 gateway_send_qrgs_maps_d=true       # send frequency, offset, coordinates and url to irc-server
 gateway_local_irc_ip_d='0.0.0.0'    # the local port on the gateway for the IRC TCP socket
-gateway_ip_d='0.0.0.0'              # the g2 port
+gateway_ip_d='127.0.0.1'            # the g2 address for qnlink (will use the external port #)
 gateway_external_ip_d='0.0.0.0'     # external ip
 gateway_external_port_d=40000       # don't change
 gateway_internal_ip_d='172.16.0.20' # internal ip address of the gateway
@@ -141,7 +141,7 @@ file_announce_dir_d='/usr/local/etc'       # where the *.dat files are for the v
 # TIMINGS - for controlling how to deal with timing issues
 #
 # most users will not have to override any of these default values
-timing_timeout_echo_d=1       # seconds before we assume echo has timed out
+timing_timeout_echotest_d=1   # seconds before we assume echo has timed out
 timing_timeout_voicemail_d=1  # seconds before we assume voicemail has timed out
 timing_timeout_remote_g2_d=2  # after this many seconds with no packets, we assume the tx is closed
 timing_timeout_local_rptr_d=1 # local repeater timeout, in seconds

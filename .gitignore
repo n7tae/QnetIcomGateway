@@ -15,9 +15,10 @@
 qn.cfg
 gwys.txt
 qndtmf
+qn.cfg
 
 # Executables
-qnigateway
+qngateway
 qnlink
 qnremote
 qnvoice
