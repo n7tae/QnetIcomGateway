@@ -141,7 +141,7 @@ bool ReadConfig(const char *cfgFile)
 	printf("REPEATER=[%s]\n", REPEATER.c_str());
 
 	for (int m=0; m<3; m++) {
-		std::string path = "module.";
+		std::string path = "module_";
 		path += m + 'a';
 		if (cfg.KeyExists(path)) {
 			std:: string type;
