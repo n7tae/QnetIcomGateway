@@ -53,7 +53,7 @@ bool read_config(const char *cfgFile)
 
 	std::string path("file_");
 	cfg.GetValue(path+"announce_dir", "", announce_dir, 2, FILENAME_MAX);
-	cfg.GetValue(path+"qnvoice_file", "", qnvoice_file, 2, FILENAME_MAX);
+	cfg.GetValue(path+"qnvoicefile",  "", qnvoice_file, 2, FILENAME_MAX);
 
 	return false;
 }

@@ -12,6 +12,7 @@
 *.pch
 
 #other
+qn.cfg
 gwys.txt
 qndtmf
 
