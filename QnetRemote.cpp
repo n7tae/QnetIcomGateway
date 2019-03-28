@@ -135,7 +135,7 @@ bool ReadConfig(const char *cfgFile)
 		return true;
 
 	const std::string estr("");	// an empty string
-	if (! cfg.GetValue("ircddb_login", estr, REPEATER, 3, 6))
+	if (cfg.GetValue("ircddb_login", estr, REPEATER, 3, 6))
 		return true;
 	REPEATER.resize(6, ' ');
 	printf("REPEATER=[%s]\n", REPEATER.c_str());
@@ -158,7 +158,7 @@ bool ReadConfig(const char *cfgFile)
 		return true;
 	}
 
-	if (! cfg.GetValue("gateway_internal_ip", estr, IP_ADDRESS, 7, 15))
+	if (cfg.GetValue("gateway_internal_ip", estr, IP_ADDRESS, 7, 15))
 		return true;
 
 	cfg.GetValue("gateway_internal_port", estr, PORT, 16000, 65535);
