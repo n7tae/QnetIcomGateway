@@ -1314,8 +1314,8 @@ void CQnetGateway::Process()
 									if (toRptr[i].last_time==0 && band_txt[i].last_time==0) {
 										printf("Re-generating header for streamID=%04x\n", g2buf.streamid);
 
-										toRptr[i].saved_hdr[4] = (unsigned char)G2_COUNTER_OUT;
-										toRptr[i].saved_hdr[5] = (unsigned char)G2_COUNTER_OUT++;
+										toRptr[i].saved_hdr[4] = (unsigned char)((G2_COUNTER_OUT>>8) & 0xFFU);
+										toRptr[i].saved_hdr[5] = (unsigned char)((G2_COUNTER_OUT++) & 0xFFU);
 
 										/* re-generate/send the header */
 										sendto(srv_sock, toRptr[i].saved_hdr, 58, 0, (struct sockaddr *)&toRptr[i].band_addr, sizeof(struct sockaddr_in));
