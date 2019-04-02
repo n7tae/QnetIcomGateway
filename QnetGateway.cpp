@@ -2383,8 +2383,8 @@ void CQnetGateway::PlayFileThread(SECHO &edata)
 	dstr.vpkt.streamid    = edata.header.streamid;
 	dstr.vpkt.ctrl        = 0x80u;
 	memcpy(dstr.vpkt.hdr.flag, edata.header.hdr.flag,   3);
-	memcpy(dstr.vpkt.hdr.r1,   edata.header.hdr.rpt1,   8);
-	memcpy(dstr.vpkt.hdr.r2,   edata.header.hdr.rpt2,   8);
+	memcpy(dstr.vpkt.hdr.r1,   edata.header.hdr.rpt2,   8);
+	memcpy(dstr.vpkt.hdr.r2,   edata.header.hdr.rpt1,   8);
 	memcpy(dstr.vpkt.hdr.ur,   "CQCQCQ  ",              8);
 	memcpy(dstr.vpkt.hdr.my,   edata.header.hdr.mycall, 8);
 	memcpy(dstr.vpkt.hdr.nm,   edata.header.hdr.sfx,    4);
