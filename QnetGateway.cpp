@@ -56,7 +56,7 @@
 #include "QnetGateway.h"
 #include "QnetConfigure.h"
 
-#define VERSION "QnetIcomGateway-0.0.1"
+#define VERSION "QnetIcomGateway-0.1.0"
 
 extern void dstar_dv_init();
 extern int dstar_dv_decode(const unsigned char *d, int data[3]);
@@ -1483,7 +1483,8 @@ void CQnetGateway::Process()
 							sendto(srv_sock, rptrbuf.pkt_id, recvlen, 0, (struct sockaddr *)&plug, sizeof(struct sockaddr_in));
 
 						if ( mycall_valid==REG_NOERROR &&
-								memcmp(rptrbuf.vpkt.hdr.ur, "XRF", 3) &&	// not a reflector
+								memcmp(rptrbuf.vpkt.hdr.ur, "XLX", 3) &&	// not a reflector
+								memcmp(rptrbuf.vpkt.hdr.ur, "XRF", 3) &&
 								memcmp(rptrbuf.vpkt.hdr.ur, "REF", 3) &&
 								memcmp(rptrbuf.vpkt.hdr.ur, "DCS", 3) &&
 								rptrbuf.vpkt.hdr.ur[0]!=' ' && 				// must have something
