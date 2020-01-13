@@ -1,7 +1,7 @@
 
 /*
  *   Copyright (C) 2010 by Scott Lawson KI4LKF
- *   Copyright (C) 2015,2018 by Thomas A. Early N7TAE
+ *   Copyright (C) 2015,2018,2020 by Thomas A. Early N7TAE
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@
 #include "QnetConfigure.h"
 #include "QnetLink.h"
 
-#define VERSION "QnetLink-1.01"
+#define VERSION "1.10"
 
 
 std::atomic<bool> CQnetLink::keep_running(true);
@@ -539,6 +539,7 @@ bool CQnetLink::ReadConfig(const char *cfgFile)
 			rf_inactivity_timer[i] *= 60;
 			if (cfg.KeyExists(key+"_link_at_start"))
 				cfg.GetValue(key+"_link_at_start", modem_type, link_at_startup[i], 8, 8);
+			cfg.GetValue(key+"_auto_link", modem_type, auto_link[i]);
 		}
 	}
 	if (0 == modules) {
@@ -723,6 +724,7 @@ bool CQnetLink::srv_open()
 		to_remote_g2[i].is_connected = false;
 		to_remote_g2[i].in_streamid = 0x0;
 		to_remote_g2[i].out_streamid = 0x0;
+		auto_link[i] = true;
 	}
 	return true;
 }
@@ -1061,14 +1063,19 @@ void CQnetLink::Process()
 						/* maybe remote system has changed IP */
 						printf("Unlinked from [%s] mod %c, TIMEOUT...\n", to_remote_g2[i].to_call, to_remote_g2[i].to_mod);
 
-						sprintf(notify_msg[i], "%c_unlinked.dat_UNLINKED_TIMEOUT", to_remote_g2[i].from_mod);
+						sprintf(notify_msg[i], "%c_unlinked.dat_LINK_TIMEOUT", to_remote_g2[i].from_mod);
 
-						to_remote_g2[i].to_call[0] = '\0';
-						memset(&(to_remote_g2[i].toDst4),0,sizeof(struct sockaddr_in));
-						to_remote_g2[i].from_mod = to_remote_g2[i].to_mod = ' ';
-						to_remote_g2[i].countdown = 0;
-						to_remote_g2[i].is_connected = false;
-						to_remote_g2[i].in_streamid = 0x0;
+						if (auto_link[i]) {
+							std::string stmp(to_remote_g2[i].to_call);
+							g2link(to_remote_g2[i].from_mod, stmp.c_str(), to_remote_g2[i].to_mod);
+						} else {
+							to_remote_g2[i].to_call[0] = '\0';
+							memset(&(to_remote_g2[i].toDst4),0,sizeof(struct sockaddr_in));
+							to_remote_g2[i].from_mod = to_remote_g2[i].to_mod = ' ';
+							to_remote_g2[i].countdown = 0;
+							to_remote_g2[i].is_connected = false;
+							to_remote_g2[i].in_streamid = 0x0;
+						}
 
 						print_status_file();
 
@@ -2004,7 +2011,7 @@ void CQnetLink::Process()
 					// printf("Remote station %s %s requested version\n", inbound_ptr->call, ip);
 
 					buf[0] = 9;
-					strncpy((char *)buf + 4, VERSION, 4);
+					strcpy((char *)buf + 4, VERSION);
 					buf[8] = 0;
 
 					sendto(ref_g2_sock, buf, 9, 0, (struct sockaddr *)&fromDst4, sizeof(struct sockaddr_in));

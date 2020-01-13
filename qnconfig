@@ -335,6 +335,9 @@ ModuleMenu () {
 		echo "               Module ${1^^} Menu ($mod=${!mod})"
 		echo
 		echo -n "ls : Link at startup (must be 8 chars)            = "; EvaluateVar {${mod},module_x}_link_at_start
+		if [ -n "$em" ]; then
+			echo -n "al : Automatic re-link on loss of link            = "; EvaluateVar {${mod},module_x}_auto_link
+		fi
 		echo -n "cs : Callsign (uses ircddb_login if empty)        = "; EvaluateVar {${mod},module_x}_callsign
 		echo -n "ra : Range (in meters, 1 mile=1609.344 meters)    = "; EvaluateVar {${mod},module_x}_range
 		echo -n "ag : Above ground level (in meters)               = "; EvaluateVar {${mod},module_x}_agl
@@ -356,6 +359,7 @@ ModuleMenu () {
 		elif [[ "$key" == ac* ]]; then SetBooleanValue ${mod}_acknowledge "$value"
 		elif [[ "$key" == ad* ]]; then eval ${mod}_ack_delay="$value"
 		elif [[ "$key" == ag* ]]; then eval ${mod}_agl="$value"
+		elif [[ "$key" == al* ]]; then SetBooleanValue ${mod}_auto_link "$value"
 		elif [[ "$key" == cs* ]]; then eval ${mod}_callsign="${value^^}"
 		elif [[ "$key" == fr* ]]; then eval ${mod}_frequency="$value"
 		elif [[ "$key" == in* ]]; then eval ${mod}_inactivity="$value"
@@ -365,13 +369,14 @@ ModuleMenu () {
 		elif [[ "$key" == ra* ]]; then eval ${mod}_range="$value"
 		elif [[ "$key" == xx* ]]; then
 			unset ${mod}_{link_at_start,callsign,offset,range,agl,ip,port}
-			unset ${mod}_{inactivity,packet_wait,acknowledge,ack_delay}
+			unset ${mod}_{inactivity,packet_wait,acknowledge,ack_delay,auto_link}
 			unset ${mod}
 			return
 		elif [[ "$key" == u* ]]; then
 			if   [[ "$value" == ac* ]]; then unset ${mod}_acknowledge
 			elif [[ "$value" == ad* ]]; then unset ${mod}_ack_delay
 			elif [[ "$value" == ag* ]]; then unset ${mod}_agl
+			elif [[ "$value" == al* ]]; then unset ${mod}_auto_link
 			elif [[ "$value" == cs* ]]; then unset ${mod}_callsign
 			elif [[ "$value" == fr* ]]; then unset ${mod}_frequency
 			elif [[ "$value" == in* ]]; then unset ${mod}_inactivity
@@ -408,6 +413,7 @@ WriteCFGFile () {
 		if [ -n "${!p}" ]; then
 			echo "${p}=${!p}" >> $outFile
 			q=${p}_link_at_start;  [ -z ${!q+x} ] || echo "${q}='${!q}'" >> $outFile
+			q=${p}_auto_link;      [ -z ${!q+x} ] || echo "${q}=${!q}"   >> $outFile
 			q=${p}_callsign;       [ -z ${!q+x} ] || echo "${q}='${!q}'" >> $outFile
 			q=${p}_offset;         [ -z ${!q+x} ] || echo "${q}=${!q}"   >> $outFile
 			q=${p}_range;          [ -z ${!q+x} ] || echo "${q}=${!q}"   >> $outFile
