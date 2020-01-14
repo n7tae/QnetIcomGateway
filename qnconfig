@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2019 by Thomas A. Early N7TAE
+# Copyright (c) 2019-2020 by Thomas A. Early N7TAE
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,11 +16,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 SetBooleanValue () {
-	local nvname
+	local dvname
 	local cv
 	if [ -z $2 ]; then
 		if [ -z ${!1+x} ]; then
-			dvname=${1}_d
+			if [[ "$1" == module_[abc]_* ]]; then
+				echo matches
+				dvname=${1//_[abc]_/_x_}
+			else
+				echo does not match
+				dvname=${1}_d
+			fi
 			cv=${!dvname}
 		else
 			cv=${!1}
