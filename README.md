@@ -1,6 +1,8 @@
 QnetIcomGateway for the ICOM Stack
 ==================================
 
+**This repo has been archived!** Please see new new version, [IcomGateway](https://github.com/n7tae/IcomGateway "A superior IRC gateway for the Icom repeater").
+
 The QnetIcomGateway is an D-Star IRCDDB gateway application that supports the Icom D-Star repeater. It is *incredibly easy* to build and install the system.
 
 The QnetIcomGateway program supports up to three modules: the 23cm, the 70cm and the 2M voice modules. (Sorry, the 23cm data module is not supported). Ideally this will be installed on a Debian-based distribution running on a computer with two Ethernet ports. One port will be connected to the world and the other port will be connected to the Icom Stack. This software will not configure you Stack, you will still need the Icom software for configuration you hardware (frequencies and offsets).
@@ -9,7 +11,7 @@ QnetIcomGateway fully supports DTMF and is implemented in a script which can be 
 
 To get started, clone the software to your Linux device:
 
-```
+```bash
 git clone git://github.com/n7tae/QnetIcomGateway.git
 ```
 
@@ -19,7 +21,7 @@ QnetIcomGateway includes a "remote control" program, called `qnremote`. After yo
 
 For other details of interesting things QnetIcomGateway can do, see the OPERATING file. For example, with QnetIcomGateway, you can execute up to 36 different Linux scripts from you radio. Two scripts are include:
 
-```
+```text
 YourCall = "      HX"   will halt your system.
 YourCall = "      RX"   will reboot your system.
 YourCall - "      GX"   will restart QnetGateway
